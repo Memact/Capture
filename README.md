@@ -2,6 +2,8 @@
 
 Captanet is the foundation memory engine behind Memact.
 
+Version: `v0.0`
+
 It answers:
 
 `What happened?`
@@ -83,7 +85,13 @@ Influnet and future consumers should use this export boundary instead of importi
 - `scripts/package-extension.mjs`
   Packages the extension into `artifacts/memact-extension.zip`.
 
-## Build And Packaging
+## Terminal Quickstart
+
+Prerequisites:
+
+- Node.js `20+`
+- npm `10+`
+- a Chromium-based browser if you want to load the extension locally
 
 Install dependencies:
 
@@ -91,13 +99,13 @@ Install dependencies:
 npm install
 ```
 
-Sync vendor dependencies manually if needed:
+Run the repository validation pass:
 
 ```powershell
-npm run sync-vendors
+npm run check
 ```
 
-Package the extension:
+Package the extension artifact:
 
 ```powershell
 npm run package-extension
@@ -108,6 +116,29 @@ The packaged extension zip is written to:
 ```text
 artifacts/memact-extension.zip
 ```
+
+Load the extension for local use:
+
+1. Run `npm run package-extension`.
+2. Extract `artifacts/memact-extension.zip` to a local folder.
+3. Open `chrome://extensions` or `edge://extensions`.
+4. Enable Developer Mode.
+5. Click `Load unpacked`.
+6. Select the extracted extension folder.
+
+If you are iterating on the source directly, you can also load:
+
+```text
+extension/memact/
+```
+
+Manual vendor refresh remains available when needed:
+
+```powershell
+npm run sync-vendors
+```
+
+`npm run build` is intentionally the same packaging step as `npm run package-extension`.
 
 ## Website Relationship
 

@@ -2,7 +2,6 @@ build/
 artifacts/
 dist/
 node_modules/
-.vite/
 .env
 .env.*
 .idea/

@@ -1,7 +1,7 @@
 {
   "name": "captanet",
   "private": true,
-  "version": "1.2.0",
+  "version": "0.0.0",
   "description": "Captanet foundation memory engine and browser extension.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
@@ -24,6 +24,7 @@
   "scripts": {
     "postinstall": "node scripts/sync-transformers.mjs",
     "sync-vendors": "node scripts/sync-transformers.mjs",
+    "check": "node scripts/check.mjs",
     "build": "node scripts/package-extension.mjs",
     "package-extension": "node scripts/package-extension.mjs"
   },
