@@ -165,33 +165,19 @@ function buildUniqueSnapshotDownloadPath(value) {
 async function downloadSnapshotToWorkspace(snapshot, options = {}) {
   const filename = buildUniqueSnapshotDownloadPath(options.filename);
   const payload = JSON.stringify(snapshot, null, 2);
-  const blobUrl = URL.createObjectURL(
-    new Blob([payload], {
-      type: "application/json",
-    })
-  );
+  const encodedPayload = encodeURIComponent(payload);
+  const dataUrl = `data:application/json;charset=utf-8,${encodedPayload}`;
+  const downloadId = await chrome.downloads.download({
+    url: dataUrl,
+    filename,
+    conflictAction: "uniquify",
+    saveAs: false,
+  });
 
-  try {
-    const downloadId = await chrome.downloads.download({
-      url: blobUrl,
-      filename,
-      conflictAction: "uniquify",
-      saveAs: false,
-    });
-
-    return {
-      downloadId,
-      filename,
-    };
-  } finally {
-    setTimeout(() => {
-      try {
-        URL.revokeObjectURL(blobUrl);
-      } catch (_) {
-        // Ignore blob cleanup failures.
-      }
-    }, 30000);
-  }
+  return {
+    downloadId,
+    filename,
+  };
 }
 
 function detectBrowserKey() {
