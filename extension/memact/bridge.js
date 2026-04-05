@@ -26,6 +26,36 @@ function forwardToPage(message) {
   window.postMessage(message, "*");
 }
 
+function injectPageApi() {
+  if (!isMemactOrigin()) {
+    return;
+  }
+  if (document.documentElement?.dataset?.captanetPageApi === "ready") {
+    return;
+  }
+
+  try {
+    const script = document.createElement("script");
+    script.src = chrome.runtime.getURL("page-api.js");
+    script.async = false;
+    script.dataset.captanetPageApi = "true";
+    script.addEventListener("load", () => {
+      try {
+        document.documentElement.dataset.captanetPageApi = "ready";
+      } catch (_) {
+        // Ignore DOM marker failures.
+      }
+      script.remove();
+    });
+    script.addEventListener("error", () => {
+      script.remove();
+    });
+    (document.head || document.documentElement).appendChild(script);
+  } catch (_) {
+    // Ignore injection failures and keep the bridge passive.
+  }
+}
+
 function isBridgeRequestType(type) {
   return typeof type === "string" && (type.startsWith("MEMACT_") || type.startsWith("CAPTANET_"));
 }
@@ -205,9 +235,13 @@ chrome.runtime.onMessage.addListener((message) => {
   forwardToPage(message);
 });
 
+injectPageApi();
 announceReady();
 window.addEventListener("DOMContentLoaded", announceReady, { once: true });
 setTimeout(announceReady, 150);
 setTimeout(announceReady, 500);
 setTimeout(announceReady, 1200);
 setTimeout(announceReady, 2500);
+setTimeout(injectPageApi, 150);
+setTimeout(injectPageApi, 500);
+setTimeout(injectPageApi, 1200);

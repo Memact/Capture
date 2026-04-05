@@ -148,6 +148,10 @@ async function bundleExtension() {
     path.join(sourceRoot, 'Readability.js'),
     path.join(packageRoot, 'Readability.js')
   )
+  await copyRecursive(
+    path.join(sourceRoot, 'page-api.js'),
+    path.join(packageRoot, 'page-api.js')
+  )
 }
 
 async function main() {

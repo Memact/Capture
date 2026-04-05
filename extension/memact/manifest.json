@@ -56,7 +56,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["Readability.js", "embed-worker.js", "vendor/transformers.min.js"],
+      "resources": ["Readability.js", "embed-worker.js", "page-api.js", "vendor/transformers.min.js"],
       "matches": [
         "http://localhost/*",
         "https://localhost/*",

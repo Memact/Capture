@@ -12,6 +12,7 @@ const requiredPaths = [
   'extension/memact/bridge.js',
   'extension/memact/captanet-api.js',
   'extension/memact/embed-worker.js',
+  'extension/memact/page-api.js',
   'extension/memact/Readability.js',
   'extension/memact/icons',
   'extension/memact/vendor',
@@ -24,6 +25,7 @@ const syntaxCheckTargets = [
   'extension/memact/bridge.js',
   'extension/memact/captanet-api.js',
   'extension/memact/embed-worker.js',
+  'extension/memact/page-api.js',
   'scripts/package-extension.mjs',
   'scripts/sync-transformers.mjs',
 ]
