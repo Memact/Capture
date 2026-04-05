@@ -165,12 +165,14 @@ The extension still recognizes approved Memact hosts and can bridge to a Memact 
 
 That coupling is part of the runtime contract, but the website implementation itself no longer lives on this branch.
 
+Captanet can also expose its page runtime on arbitrary websites, but only after you explicitly authorize the current origin by clicking the extension icon on that site once.
+
 ## Hand Off To Influnet
 
 Captanet is the capture and memory side of the stack. A common workflow is:
 
 1. Run Captanet and let it collect activity.
-2. Export a snapshot through the bridge runtime:
+2. On `memact.com`, localhost, or any site you have explicitly authorized, export a snapshot through the bridge runtime:
 
 ```js
 await window.captanet.exportSnapshot({
@@ -216,6 +218,27 @@ You should see populated fields such as:
 - `capture_packet`
 
 If `full_text` is consistently empty on a page, that page is either blocked from scripted capture, intentionally reduced to structured memory, or filtered as low-value/noisy content by Captanet's retention logic.
+
+## Authorize Any Website
+
+If you want to use the page runtime on a site other than `memact.com` or localhost:
+
+1. Open that website.
+2. Click the Captanet extension icon once.
+3. Refresh the page.
+4. Open DevTools and run:
+
+```js
+await window.captanet.waitUntilReady()
+```
+
+After that, the same runtime API is available on that authorized origin:
+
+```js
+await window.captanet.getSnapshot({ limit: 50 })
+```
+
+This is intentionally explicit. Captanet does not expose your memory API to every visited site by default.
 
 ## Embedding And Reuse
 

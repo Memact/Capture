@@ -103,6 +103,13 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 
 `exportSnapshot()` returns the same Captanet snapshot contract and, by default, downloads it as a JSON file that Influnet can analyze directly.
 
+This runtime is available by default on:
+
+- `memact.com`
+- localhost development hosts
+
+It can also be enabled on any other website after the user explicitly authorizes that origin by clicking the extension action on that site once.
+
 ## Dependency Rule
 
 - Captanet must not import Influnet.

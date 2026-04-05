@@ -1,8 +1,21 @@
+const CAPTANET_AUTHORIZED_ORIGINS_KEY = "captanet_authorized_origins";
+
+let pageAccessEnabled = false;
+
 function normalizeHostname(hostname) {
   return String(hostname || "")
     .toLowerCase()
     .replace(/^\[/, "")
     .replace(/\]$/, "");
+}
+
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${normalizeHostname(url.hostname)}${url.port ? `:${url.port}` : ""}`;
+  } catch {
+    return "";
+  }
 }
 
 function isLocalMemactHost(hostname) {
@@ -15,11 +28,39 @@ function isLocalMemactHost(hostname) {
   );
 }
 
-function isMemactOrigin() {
-  return (
-    /(^|\.)memact\.com$/i.test(location.hostname) ||
-    isLocalMemactHost(location.hostname)
-  );
+function isDefaultAllowedOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    const hostname = normalizeHostname(url.hostname);
+    if (/^https?:$/i.test(url.protocol) === false) {
+      return false;
+    }
+    return /(^|\.)memact\.com$/i.test(hostname) || isLocalMemactHost(hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function isCurrentOriginAuthorized() {
+  const currentOrigin = normalizeOrigin(location.href);
+  if (!currentOrigin) {
+    return false;
+  }
+  if (isDefaultAllowedOrigin(currentOrigin)) {
+    return true;
+  }
+
+  try {
+    const stored = await chrome.storage.local.get(CAPTANET_AUTHORIZED_ORIGINS_KEY);
+    const origins = Array.isArray(stored?.[CAPTANET_AUTHORIZED_ORIGINS_KEY])
+      ? stored[CAPTANET_AUTHORIZED_ORIGINS_KEY]
+      : [];
+    return origins
+      .map((origin) => normalizeOrigin(origin))
+      .includes(currentOrigin);
+  } catch {
+    return false;
+  }
 }
 
 function forwardToPage(message) {
@@ -27,7 +68,7 @@ function forwardToPage(message) {
 }
 
 function injectPageApi() {
-  if (!isMemactOrigin()) {
+  if (!pageAccessEnabled) {
     return;
   }
   if (document.documentElement?.dataset?.captanetPageApi === "ready") {
@@ -61,6 +102,9 @@ function isBridgeRequestType(type) {
 }
 
 function announceReady() {
+  if (!pageAccessEnabled) {
+    return;
+  }
   try {
     document.documentElement.dataset.memactBridge = "ready";
   } catch (_) {
@@ -69,8 +113,20 @@ function announceReady() {
   forwardToPage({ type: "MEMACT_EXTENSION_READY" });
 }
 
+async function refreshPageAccess({ announce = false } = {}) {
+  pageAccessEnabled = await isCurrentOriginAuthorized();
+  if (!pageAccessEnabled) {
+    return false;
+  }
+  injectPageApi();
+  if (announce) {
+    announceReady();
+  }
+  return true;
+}
+
 window.addEventListener("message", async (event) => {
-  if (!isMemactOrigin()) {
+  if (!pageAccessEnabled) {
     return;
   }
   if (event.source !== window) {
@@ -228,20 +284,44 @@ window.addEventListener("message", async (event) => {
 });
 
 chrome.runtime.onMessage.addListener((message) => {
+  if (message?.type === "CAPTANET_SITE_ACCESS_CHANGED" && message.enabled) {
+    pageAccessEnabled = true;
+    injectPageApi();
+    announceReady();
+    forwardToPage({
+      type: "CAPTANET_SITE_ACCESS_CHANGED",
+      enabled: true,
+      origin: message.origin || normalizeOrigin(location.href),
+    });
+    return;
+  }
+
   if (!message?.type?.startsWith?.("MEMACT_BRAIN_")) {
     return;
   }
 
-  forwardToPage(message);
+  if (pageAccessEnabled) {
+    forwardToPage(message);
+  }
 });
 
-injectPageApi();
-announceReady();
-window.addEventListener("DOMContentLoaded", announceReady, { once: true });
-setTimeout(announceReady, 150);
-setTimeout(announceReady, 500);
-setTimeout(announceReady, 1200);
-setTimeout(announceReady, 2500);
-setTimeout(injectPageApi, 150);
-setTimeout(injectPageApi, 500);
-setTimeout(injectPageApi, 1200);
+refreshPageAccess({ announce: true }).catch(() => {});
+window.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    refreshPageAccess({ announce: true }).catch(() => {});
+  },
+  { once: true }
+);
+setTimeout(() => {
+  refreshPageAccess({ announce: true }).catch(() => {});
+}, 150);
+setTimeout(() => {
+  refreshPageAccess({ announce: true }).catch(() => {});
+}, 500);
+setTimeout(() => {
+  refreshPageAccess({ announce: true }).catch(() => {});
+}, 1200);
+setTimeout(() => {
+  refreshPageAccess({ announce: true }).catch(() => {});
+}, 2500);

@@ -43,11 +43,13 @@ const FULL_TEXT_MAX_LEN = 8000;
 const EMBED_WORKER_URL = chrome.runtime.getURL("embed-worker.js");
 const INTERACTION_CAPTURE_HINT_DELAY_MS = 1200;
 const INTERACTION_CAPTURE_MIN_INTERVAL_MS = 12000;
+const CAPTANET_AUTHORIZED_ORIGINS_KEY = "captanet_authorized_origins";
 
 let embedWorker = null;
 let embedWorkerReady = false;
 let embedPending = new Map();
 let snapshotTimer = null;
+let authorizedBridgeOrigins = new Set();
 const SNAPSHOT_DEBOUNCE_MS = 450;
 
 function normalizeHostname(hostname) {
@@ -76,6 +78,61 @@ function isAllowedMemactOrigin(origin) {
   } catch {
     return false;
   }
+}
+
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${normalizeHostname(url.hostname)}${url.port ? `:${url.port}` : ""}`;
+  } catch {
+    return "";
+  }
+}
+
+function isEligiblePageOrigin(origin) {
+  try {
+    const url = new URL(origin);
+    return /^https?:$/i.test(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
+async function refreshAuthorizedBridgeOrigins() {
+  try {
+    const stored = await chrome.storage.local.get(CAPTANET_AUTHORIZED_ORIGINS_KEY);
+    const origins = Array.isArray(stored?.[CAPTANET_AUTHORIZED_ORIGINS_KEY])
+      ? stored[CAPTANET_AUTHORIZED_ORIGINS_KEY]
+      : [];
+    authorizedBridgeOrigins = new Set(
+      origins
+        .map((origin) => normalizeOrigin(origin))
+        .filter(Boolean)
+    );
+  } catch {
+    authorizedBridgeOrigins = new Set();
+  }
+}
+
+async function authorizeOrigin(origin) {
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin || isAllowedMemactOrigin(normalizedOrigin)) {
+    return normalizedOrigin;
+  }
+  const nextOrigins = [...new Set([...authorizedBridgeOrigins, normalizedOrigin])];
+  await chrome.storage.local.set({
+    [CAPTANET_AUTHORIZED_ORIGINS_KEY]: nextOrigins,
+  });
+  authorizedBridgeOrigins = new Set(nextOrigins);
+  return normalizedOrigin;
+}
+
+function hasAuthorizedOrigin(origin) {
+  const normalizedOrigin = normalizeOrigin(origin);
+  if (!normalizedOrigin) {
+    return false;
+  }
+  return isAllowedMemactOrigin(normalizedOrigin) || authorizedBridgeOrigins.has(normalizedOrigin);
 }
 
 function detectBrowserKey() {
@@ -351,7 +408,7 @@ function isAllowedBridgeSender(sender) {
     return true;
   }
 
-  return isAllowedMemactOrigin(sender.url);
+  return hasAuthorizedOrigin(sender.url);
 }
 
 async function embedText(text) {
@@ -1038,6 +1095,25 @@ async function openMemactSite() {
   await chrome.tabs.create({ url: MEMACT_SITE_URL });
 }
 
+async function enableCaptanetOnTab(tab) {
+  const tabId = Number(tab?.id || 0);
+  const normalizedOrigin = normalizeOrigin(tab?.url || "");
+  if (!tabId || !normalizedOrigin || !isEligiblePageOrigin(normalizedOrigin)) {
+    return false;
+  }
+
+  await authorizeOrigin(normalizedOrigin);
+  await chrome.tabs.sendMessage(tabId, {
+    type: "CAPTANET_SITE_ACCESS_CHANGED",
+    enabled: true,
+    origin: normalizedOrigin,
+  }).catch(() => {});
+  queueSnapshot();
+  return true;
+}
+
+refreshAuthorizedBridgeOrigins().catch(() => {});
+
 function lexicalOverlapScore(query, event) {
   const tokens = String(query || "")
     .toLowerCase()
@@ -1485,15 +1561,24 @@ function emitBrainEvent(tabId, payload) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
+  refreshAuthorizedBridgeOrigins().catch(() => {});
   initDB().catch(() => {});
   queueSnapshot();
   warmBrainRouter().catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
+  refreshAuthorizedBridgeOrigins().catch(() => {});
   initDB().catch(() => {});
   queueSnapshot();
   warmBrainRouter().catch(() => {});
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes?.[CAPTANET_AUTHORIZED_ORIGINS_KEY]) {
+    return;
+  }
+  refreshAuthorizedBridgeOrigins().catch(() => {});
 });
 
 chrome.tabs.onActivated.addListener(queueSnapshot);
@@ -1509,7 +1594,12 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
 chrome.tabs.onCreated.addListener(queueSnapshot);
 chrome.tabs.onRemoved.addListener(queueSnapshot);
 chrome.windows.onFocusChanged.addListener(queueSnapshot);
-chrome.action.onClicked.addListener(() => {
+chrome.action.onClicked.addListener((tab) => {
+  const normalizedOrigin = normalizeOrigin(tab?.url || "");
+  if (normalizedOrigin && !isAllowedMemactOrigin(normalizedOrigin) && isEligiblePageOrigin(normalizedOrigin)) {
+    enableCaptanetOnTab(tab).catch(() => {});
+    return;
+  }
   openMemactSite().catch(() => {});
 });
 chrome.webNavigation.onCompleted.addListener(
