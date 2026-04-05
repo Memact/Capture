@@ -108,6 +108,8 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 
 `downloadSnapshot()` is a convenience wrapper when you only need the saved file metadata.
 
+Separately from the page runtime, the extension now also maintains an automatic rolling export at `memact_ai/captanet-snapshot-latest.json` while new captures are being recorded. Influnet can consume that rolling file directly without requiring a manual console export on each run.
+
 This runtime is available by default on:
 
 - `memact.com`

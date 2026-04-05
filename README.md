@@ -99,6 +99,8 @@ That contract contains:
 
 Influnet and future consumers should use this export boundary instead of importing `db.js`, `context-pipeline.js`, or other internal modules directly.
 
+Captanet now also autosaves a rolling snapshot file in the workspace root while it is capturing. That means the browser extension can keep Influnet fed without requiring a manual console export on every run.
+
 ## Repository Layout
 
 - `extension/memact/`
@@ -178,7 +180,20 @@ Captanet can also expose its page runtime on arbitrary websites, but only after 
 Captanet is the capture and memory side of the stack. A common workflow is:
 
 1. Run Captanet and let it collect activity.
-2. On `memact.com`, localhost, or any site you have explicitly authorized, export a snapshot through the bridge runtime:
+2. Captanet automatically refreshes a rolling snapshot at:
+
+```text
+C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-latest.json
+```
+
+3. Analyze that snapshot with Influnet:
+
+```powershell
+cd ..\influnet
+npm run analyze -- --format report
+```
+
+4. If you want a point-in-time archive snapshot as well, you can still create one manually on `memact.com`, localhost, or any authorized site:
 
 ```js
 await window.captanet.exportSnapshot({
@@ -186,17 +201,10 @@ await window.captanet.exportSnapshot({
 });
 ```
 
-By default that export is written into the workspace root as:
+That manual archive export is written into the workspace root as:
 
 ```text
 C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-<timestamp>-<id>.json
-```
-
-3. Analyze that exported file with Influnet:
-
-```powershell
-cd ..\influnet
-npm run analyze -- --input <path-to-captanet-snapshot-*.json> --format report
 ```
 
 This keeps the dependency direction clean:
@@ -209,6 +217,8 @@ This keeps the dependency direction clean:
 After loading the extension, open a few real pages and interact with them for a few seconds by scrolling, selecting text, or typing.
 
 You do not have to manually trigger capture on every page anymore. Captanet automatically refreshes capture while you navigate, keep a page in focus, watch media, or stay on a page whose content keeps changing.
+
+You also do not have to manually export a snapshot for every Influnet run anymore. Captanet keeps a rolling `captanet-snapshot-latest.json` file refreshed automatically while it captures.
 
 Then export a snapshot from a bridge-enabled Memact host:
 
