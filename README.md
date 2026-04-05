@@ -190,7 +190,7 @@ C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-<timestamp>-<id>.json
 
 ```powershell
 cd ..\influnet
-npm run analyze -- --input <path-to-captanet-snapshot.json> --format report
+npm run analyze -- --input <path-to-captanet-snapshot-*.json> --format report
 ```
 
 This keeps the dependency direction clean:
@@ -247,11 +247,16 @@ If you want the file export explicitly:
 ```js
 await window.captanet.downloadSnapshot({
   limit: 3000,
-  filename: "memact_ai/captanet-snapshot.json",
 })
 ```
 
-Captanet now appends a timestamp and random id automatically, so repeated exports do not overwrite each other.
+Captanet writes that export into:
+
+```text
+C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-<timestamp>-<id>.json
+```
+
+It appends the timestamp and random id automatically, so repeated exports do not overwrite each other.
 
 If you explicitly want the old browser-only download fallback, you can opt in:
 
