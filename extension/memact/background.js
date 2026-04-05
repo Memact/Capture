@@ -60,6 +60,9 @@ let embedWorkerReady = false;
 let embedPending = new Map();
 let snapshotTimer = null;
 let authorizedBridgeOrigins = new Set();
+let snapshotInFlight = false;
+let snapshotQueuedWhileRunning = false;
+const readabilityInjectionState = new Map();
 const SNAPSHOT_DEBOUNCE_MS = 450;
 
 function normalizeHostname(hostname) {
@@ -688,13 +691,42 @@ async function embedText(text) {
 }
 
 async function injectReadability(tabId) {
+  if (!Number.isInteger(Number(tabId))) {
+    return false;
+  }
+
+  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  const tabUrl = normalizeText(tab?.url, 1000);
+  if (!tabUrl) {
+    return false;
+  }
+  const currentState = readabilityInjectionState.get(tabId);
+  if (currentState?.url === tabUrl) {
+    if (currentState.status === "ready") {
+      return true;
+    }
+    if (currentState.status === "failed") {
+      return false;
+    }
+  } else {
+    readabilityInjectionState.delete(tabId);
+  }
+
   try {
     await chrome.scripting.executeScript({
       target: { tabId },
       files: ["Readability.js"]
     });
+    readabilityInjectionState.set(tabId, {
+      status: "ready",
+      url: tabUrl,
+    });
     return true;
   } catch {
+    readabilityInjectionState.set(tabId, {
+      status: "failed",
+      url: tabUrl,
+    });
     return false;
   }
 }
@@ -1427,6 +1459,12 @@ async function processAndStore(tabData) {
 }
 
 async function snapshotFocusedWindow() {
+  if (snapshotInFlight) {
+    snapshotQueuedWhileRunning = true;
+    return;
+  }
+
+  snapshotInFlight = true;
   try {
     const currentWindow = await chrome.windows.getLastFocused({ populate: true });
     if (!currentWindow || !Array.isArray(currentWindow.tabs)) {
@@ -1443,6 +1481,13 @@ async function snapshotFocusedWindow() {
         active: Boolean(tab.active)
       }));
     const activeTab = currentWindow.tabs.find((tab) => tab && tab.active);
+    if (
+      !activeTab ||
+      activeTab.discarded ||
+      (activeTab.status && activeTab.status !== "complete")
+    ) {
+      return;
+    }
     const activeContext = activeTab ? await captureActiveTabContext(activeTab) : null;
 
     if (activeTab) {
@@ -1456,6 +1501,12 @@ async function snapshotFocusedWindow() {
     }
   } catch {
     // Keep the extension silent when Memact is not running or the page is inaccessible.
+  } finally {
+    snapshotInFlight = false;
+    if (snapshotQueuedWhileRunning) {
+      snapshotQueuedWhileRunning = false;
+      queueSnapshot();
+    }
   }
 }
 
@@ -1982,6 +2033,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 chrome.tabs.onActivated.addListener(queueSnapshot);
 chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (changeInfo?.status === "loading" || changeInfo?.url) {
+    readabilityInjectionState.delete(_tabId);
+  }
   if (changeInfo?.status !== "complete") {
     return;
   }
@@ -1991,7 +2045,10 @@ chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
   queueSnapshot();
 });
 chrome.tabs.onCreated.addListener(queueSnapshot);
-chrome.tabs.onRemoved.addListener(queueSnapshot);
+chrome.tabs.onRemoved.addListener((tabId) => {
+  readabilityInjectionState.delete(tabId);
+  queueSnapshot();
+});
 chrome.windows.onFocusChanged.addListener(queueSnapshot);
 chrome.action.onClicked.addListener((tab) => {
   const normalizedOrigin = normalizeOrigin(tab?.url || "");
