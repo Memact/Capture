@@ -1,5 +1,3 @@
-import { CreateMLCEngine, prebuiltAppConfig } from "./vendor/web-llm.mjs";
-
 const PRIMARY_MODEL_ID = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
 const MODEL_LOAD_TIMEOUT_MS = 180000;
 const GENERATION_START_TIMEOUT_MS = 90000;
@@ -10,6 +8,7 @@ const MAX_OUTPUT_TOKENS = 280;
 let engine = null;
 let loadPromise = null;
 let primePromise = null;
+let webLlmModulePromise = null;
 let primed = false;
 let status = {
   ready: false,
@@ -59,7 +58,18 @@ function hasWebGPU() {
   return typeof navigator !== "undefined" && Boolean(navigator.gpu);
 }
 
-function createAppConfig() {
+async function loadWebLlmModule() {
+  if (!webLlmModulePromise) {
+    webLlmModulePromise = import("./vendor/web-llm.mjs").catch((error) => {
+      webLlmModulePromise = null;
+      throw error;
+    });
+  }
+  return webLlmModulePromise;
+}
+
+async function createAppConfig() {
+  const { prebuiltAppConfig } = await loadWebLlmModule();
   return {
     ...prebuiltAppConfig,
     useIndexedDBCache: true,
@@ -68,6 +78,7 @@ function createAppConfig() {
 }
 
 async function tryLoadModel(modelId, appConfig) {
+  const { CreateMLCEngine } = await loadWebLlmModule();
   updateStatus({
     loading: true,
     ready: false,
@@ -168,8 +179,8 @@ async function ensureEngineLoaded() {
     throw new Error("webgpu_unavailable");
   }
 
-  const appConfig = createAppConfig();
-  loadPromise = tryLoadModel(PRIMARY_MODEL_ID, appConfig)
+  loadPromise = createAppConfig()
+    .then((appConfig) => tryLoadModel(PRIMARY_MODEL_ID, appConfig))
     .catch((error) => {
       updateStatus({
         loading: false,

@@ -2005,7 +2005,6 @@ chrome.runtime.onInstalled.addListener(() => {
   initDB().catch(() => {});
   ensureAutoExportAlarm();
   queueSnapshot();
-  warmBrainRouter().catch(() => {});
   maybeAutoExportLatestSnapshot({
     reason: "install",
     force: true,
@@ -2017,7 +2016,6 @@ chrome.runtime.onStartup.addListener(() => {
   initDB().catch(() => {});
   ensureAutoExportAlarm();
   queueSnapshot();
-  warmBrainRouter().catch(() => {});
   maybeAutoExportLatestSnapshot({
     reason: "startup",
     force: true,
