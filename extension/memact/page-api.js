@@ -3,6 +3,7 @@
     return;
   }
 
+  const DEFAULT_SNAPSHOT_FILENAME = "memact_ai/captanet-snapshot.json";
   const pendingRequests = new Map();
   let bridgeReady = false;
   let requestCounter = 0;
@@ -158,17 +159,58 @@
     async exportSnapshot(options = {}) {
       const {
         limit = 3000,
-        filename = "captanet-snapshot.json",
+        filename = DEFAULT_SNAPSHOT_FILENAME,
         download = true,
       } = options || {};
-      const snapshot = await this.getSnapshot({ limit });
-      if (!snapshot) {
-        throw new Error("Captanet did not return a snapshot.");
+
+      if (!download) {
+        const snapshot = await this.getSnapshot({ limit });
+        if (!snapshot) {
+          throw new Error("Captanet did not return a snapshot.");
+        }
+        return snapshot;
       }
-      if (download) {
-        downloadJson(filename, snapshot);
+
+      try {
+        const response = await expectCaptanetResponse("CAPTANET_EXPORT_SNAPSHOT", {
+          limit,
+          filename,
+        });
+        const snapshot = response.snapshot || null;
+        if (!snapshot) {
+          throw new Error("Captanet did not return a snapshot.");
+        }
+        snapshot.export_meta = {
+          saved_to: response.saved_to || filename,
+          download_id: response.download_id || null,
+          fallback_download: false,
+        };
+        return snapshot;
+      } catch (_) {
+        const snapshot = await this.getSnapshot({ limit });
+        if (!snapshot) {
+          throw new Error("Captanet did not return a snapshot.");
+        }
+        const safeFilename = String(filename || DEFAULT_SNAPSHOT_FILENAME)
+          .replace(/\\/g, "/")
+          .split("/")
+          .filter(Boolean)
+          .at(-1) || "captanet-snapshot.json";
+        downloadJson(safeFilename, snapshot);
+        snapshot.export_meta = {
+          saved_to: safeFilename,
+          download_id: null,
+          fallback_download: true,
+        };
+        return snapshot;
       }
-      return snapshot;
+    },
+    async downloadSnapshot(options = {}) {
+      const snapshot = await this.exportSnapshot(options);
+      return snapshot?.export_meta || {
+        saved_to: options?.filename || DEFAULT_SNAPSHOT_FILENAME,
+        download_id: null,
+      };
     },
   };
 

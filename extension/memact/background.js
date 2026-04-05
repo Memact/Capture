@@ -44,6 +44,7 @@ const EMBED_WORKER_URL = chrome.runtime.getURL("embed-worker.js");
 const INTERACTION_CAPTURE_HINT_DELAY_MS = 1200;
 const INTERACTION_CAPTURE_MIN_INTERVAL_MS = 12000;
 const CAPTANET_AUTHORIZED_ORIGINS_KEY = "captanet_authorized_origins";
+const DEFAULT_SNAPSHOT_DOWNLOAD_PATH = "memact_ai/captanet-snapshot.json";
 
 let embedWorker = null;
 let embedWorkerReady = false;
@@ -133,6 +134,48 @@ function hasAuthorizedOrigin(origin) {
     return false;
   }
   return isAllowedMemactOrigin(normalizedOrigin) || authorizedBridgeOrigins.has(normalizedOrigin);
+}
+
+function normalizeDownloadPath(value, fallback = DEFAULT_SNAPSHOT_DOWNLOAD_PATH) {
+  const normalized = String(value || fallback)
+    .replace(/\\/g, "/")
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter((segment) => segment && segment !== "." && segment !== "..")
+    .join("/");
+  return normalized || fallback;
+}
+
+async function downloadSnapshotToWorkspace(snapshot, options = {}) {
+  const filename = normalizeDownloadPath(options.filename, DEFAULT_SNAPSHOT_DOWNLOAD_PATH);
+  const payload = JSON.stringify(snapshot, null, 2);
+  const blobUrl = URL.createObjectURL(
+    new Blob([payload], {
+      type: "application/json",
+    })
+  );
+
+  try {
+    const downloadId = await chrome.downloads.download({
+      url: blobUrl,
+      filename,
+      conflictAction: "overwrite",
+      saveAs: false,
+    });
+
+    return {
+      downloadId,
+      filename,
+    };
+  } finally {
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(blobUrl);
+      } catch (_) {
+        // Ignore blob cleanup failures.
+      }
+    }, 30000);
+  }
 }
 
 function detectBrowserKey() {
@@ -1889,6 +1932,31 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ok: false,
           error: String(error?.message || error || "captanet snapshot failed"),
           snapshot: null,
+        })
+      );
+    return true;
+  }
+
+  if (message.type === "captanetExportSnapshot") {
+    getCaptanetSnapshot({ limit: message.limit })
+      .then(async (snapshot) => {
+        const exportResult = await downloadSnapshotToWorkspace(snapshot, {
+          filename: message.filename,
+        });
+        sendResponse({
+          ok: true,
+          snapshot,
+          saved_to: exportResult.filename,
+          download_id: exportResult.downloadId,
+        });
+      })
+      .catch((error) =>
+        sendResponse({
+          ok: false,
+          error: String(error?.message || error || "captanet snapshot export failed"),
+          snapshot: null,
+          saved_to: "",
+          download_id: null,
         })
       );
     return true;

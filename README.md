@@ -177,8 +177,13 @@ Captanet is the capture and memory side of the stack. A common workflow is:
 ```js
 await window.captanet.exportSnapshot({
   limit: 3000,
-  filename: "captanet-snapshot.json",
 });
+```
+
+By default that export is written into the workspace root as:
+
+```text
+C:\Users\sujay\Downloads\memact_ai\captanet-snapshot.json
 ```
 
 3. Analyze that exported file with Influnet:
@@ -202,7 +207,6 @@ Then export a snapshot from a bridge-enabled Memact host:
 ```js
 const snapshot = await window.captanet.exportSnapshot({
   limit: 3000,
-  filename: "captanet-snapshot.json",
   download: false,
 });
 
@@ -236,6 +240,15 @@ After that, the same runtime API is available on that authorized origin:
 
 ```js
 await window.captanet.getSnapshot({ limit: 50 })
+```
+
+If you want the file export explicitly:
+
+```js
+await window.captanet.downloadSnapshot({
+  limit: 3000,
+  filename: "memact_ai/captanet-snapshot.json",
+})
 ```
 
 This is intentionally explicit. Captanet does not expose your memory API to every visited site by default.

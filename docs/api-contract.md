@@ -81,6 +81,7 @@ These messages are now forwarded through `extension/memact/bridge.js`.
 - `CAPTANET_GET_SESSIONS`
 - `CAPTANET_GET_ACTIVITIES`
 - `CAPTANET_GET_SNAPSHOT`
+- `CAPTANET_EXPORT_SNAPSHOT`
 
 Responses:
 
@@ -88,6 +89,7 @@ Responses:
 - `CAPTANET_GET_SESSIONS_RESULT`
 - `CAPTANET_GET_ACTIVITIES_RESULT`
 - `CAPTANET_GET_SNAPSHOT_RESULT`
+- `CAPTANET_EXPORT_SNAPSHOT_RESULT`
 
 ## Browser Runtime Export
 
@@ -100,8 +102,11 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 - `window.captanet.getActivities({ limit })`
 - `window.captanet.getSnapshot({ limit })`
 - `window.captanet.exportSnapshot({ limit, filename, download })`
+- `window.captanet.downloadSnapshot({ limit, filename })`
 
-`exportSnapshot()` returns the same Captanet snapshot contract and, by default, downloads it as a JSON file that Influnet can analyze directly.
+`exportSnapshot()` returns the same Captanet snapshot contract and, by default, asks the extension to save it into `memact_ai/captanet-snapshot.json` inside the user's Downloads workspace.
+
+`downloadSnapshot()` is a convenience wrapper when you only need the saved file metadata.
 
 This runtime is available by default on:
 
