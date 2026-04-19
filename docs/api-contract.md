@@ -4,7 +4,7 @@ Downstream Memact engines must consume Capture only through the public data cont
 
 ## Public Functions
 
-Located in `extension/memact/captanet-api.js`.
+Located in `extension/memact/capture-api.js`.
 
 - `getEvents({ limit })`
   Returns normalized, noise-filtered event records in chronological order.
@@ -15,15 +15,15 @@ Located in `extension/memact/captanet-api.js`.
 - `getActivities({ limit })`
   Returns semantic activity units derived from the same session builder.
 
-- `getCaptanetSnapshot({ limit })`
+- `getCaptureSnapshot({ limit })`
   Returns a full snapshot with `events`, `sessions`, and `activities`.
 
 ## Snapshot Shape
 
 ```json
 {
-  "system": "captanet",
-  "snapshot_type": "captanet-memory-export",
+  "system": "capture",
+  "snapshot_type": "capture-memory-export",
   "schema_version": 1,
   "generated_at": "2026-04-03T12:00:00.000Z",
   "counts": {
@@ -77,19 +77,19 @@ The nested `events` array is especially useful for downstream evidence-first sys
 
 These messages are now forwarded through `extension/memact/bridge.js`.
 
-- `CAPTANET_GET_EVENTS`
-- `CAPTANET_GET_SESSIONS`
-- `CAPTANET_GET_ACTIVITIES`
-- `CAPTANET_GET_SNAPSHOT`
-- `CAPTANET_EXPORT_SNAPSHOT`
+- `CAPTURE_GET_EVENTS`
+- `CAPTURE_GET_SESSIONS`
+- `CAPTURE_GET_ACTIVITIES`
+- `CAPTURE_GET_SNAPSHOT`
+- `CAPTURE_EXPORT_SNAPSHOT`
 
 Responses:
 
-- `CAPTANET_GET_EVENTS_RESULT`
-- `CAPTANET_GET_SESSIONS_RESULT`
-- `CAPTANET_GET_ACTIVITIES_RESULT`
-- `CAPTANET_GET_SNAPSHOT_RESULT`
-- `CAPTANET_EXPORT_SNAPSHOT_RESULT`
+- `CAPTURE_GET_EVENTS_RESULT`
+- `CAPTURE_GET_SESSIONS_RESULT`
+- `CAPTURE_GET_ACTIVITIES_RESULT`
+- `CAPTURE_GET_SNAPSHOT_RESULT`
+- `CAPTURE_EXPORT_SNAPSHOT_RESULT`
 
 ## Browser Runtime Export
 
@@ -97,18 +97,18 @@ When an authorized host is running with the extension bridge enabled, the page e
 
 That runtime is provided by `extension/memact/page-api.js`, which is injected into the page by `extension/memact/bridge.js`.
 
-- `window.captanet.getEvents({ limit })`
-- `window.captanet.getSessions({ limit })`
-- `window.captanet.getActivities({ limit })`
-- `window.captanet.getSnapshot({ limit })`
-- `window.captanet.exportSnapshot({ limit, filename, download })`
-- `window.captanet.downloadSnapshot({ limit, filename })`
+- `window.capture.getEvents({ limit })`
+- `window.capture.getSessions({ limit })`
+- `window.capture.getActivities({ limit })`
+- `window.capture.getSnapshot({ limit })`
+- `window.capture.exportSnapshot({ limit, filename, download })`
+- `window.capture.downloadSnapshot({ limit, filename })`
 
-`exportSnapshot()` returns the same Captanet snapshot contract and, by default, asks the extension to save it into `memact_ai/captanet-snapshot-<timestamp>-<id>.json` inside the user's Downloads workspace.
+`exportSnapshot()` returns the same Capture snapshot contract and, by default, asks the extension to save it into `memact_ai/capture-snapshot-<timestamp>-<id>.json` inside the user's Downloads workspace.
 
 `downloadSnapshot()` is a convenience wrapper when you only need the saved file metadata.
 
-Separately from the page runtime, the extension now also maintains an automatic rolling export at `memact_ai/captanet-snapshot-latest.json` while new captures are being recorded. Downstream engines can consume that rolling file directly without requiring a manual console export on each run.
+Separately from the page runtime, the extension now also maintains an automatic rolling export at `memact_ai/capture-snapshot-latest.json` while new captures are being recorded. Downstream engines can consume that rolling file directly without requiring a manual console export on each run.
 
 This runtime is available by default on:
 

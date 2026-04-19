@@ -1,9 +1,9 @@
 import { cosineSimilarity, getRecentEvents } from "./db.js";
-import { createCaptanetActivitySnapshot } from "./activity-model.js";
+import { createCaptureActivitySnapshot } from "./activity-model.js";
 
 export async function getEvents(options = {}) {
   const limit = Math.max(1, Number(options.limit || 3000));
-  const snapshot = createCaptanetActivitySnapshot(await getRecentEvents(limit), {
+  const snapshot = createCaptureActivitySnapshot(await getRecentEvents(limit), {
     cosineSimilarity,
   });
   return snapshot.events;
@@ -11,7 +11,7 @@ export async function getEvents(options = {}) {
 
 export async function getSessions(options = {}) {
   const limit = Math.max(1, Number(options.limit || 3000));
-  const snapshot = createCaptanetActivitySnapshot(await getRecentEvents(limit), {
+  const snapshot = createCaptureActivitySnapshot(await getRecentEvents(limit), {
     cosineSimilarity,
   });
   return snapshot.sessions;
@@ -19,20 +19,20 @@ export async function getSessions(options = {}) {
 
 export async function getActivities(options = {}) {
   const limit = Math.max(1, Number(options.limit || 3000));
-  const snapshot = createCaptanetActivitySnapshot(await getRecentEvents(limit), {
+  const snapshot = createCaptureActivitySnapshot(await getRecentEvents(limit), {
     cosineSimilarity,
   });
   return snapshot.activities;
 }
 
-export async function getCaptanetSnapshot(options = {}) {
+export async function getCaptureSnapshot(options = {}) {
   const limit = Math.max(1, Number(options.limit || 3000));
-  const snapshot = createCaptanetActivitySnapshot(await getRecentEvents(limit), {
+  const snapshot = createCaptureActivitySnapshot(await getRecentEvents(limit), {
     cosineSimilarity,
   });
   return {
-    system: "captanet",
-    snapshot_type: "captanet-memory-export",
+    system: "capture",
+    snapshot_type: "capture-memory-export",
     schema_version: 1,
     generated_at: new Date().toISOString(),
     counts: {

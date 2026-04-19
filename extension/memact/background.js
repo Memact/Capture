@@ -23,11 +23,11 @@ import { extractPdfTextFromUrl, looksLikePdfResource } from "./pdf-support.js";
 import { getIndexedSearchCandidates, invalidateEventSearchIndex } from "./search-index.js";
 import { buildCapturePacket } from "./capture-packet.js";
 import {
-  getActivities as getCaptanetActivities,
-  getCaptanetSnapshot,
-  getEvents as getCaptanetEvents,
-  getSessions as getCaptanetSessions,
-} from "./captanet-api.js";
+  getActivities as getCaptureActivities,
+  getCaptureSnapshot,
+  getEvents as getCaptureEvents,
+  getSessions as getCaptureSessions,
+} from "./capture-api.js";
 import {
   clearBrainConversation,
   getBrainStatusSnapshot,
@@ -49,11 +49,11 @@ const AUTO_CAPTURE_REASON_MAX_AGE_MS = 15000;
 const AUTO_EXPORT_INTERVAL_MINUTES = 3;
 const AUTO_EXPORT_MIN_INTERVAL_MS = 45000;
 const AUTO_EXPORT_SNAPSHOT_LIMIT = 3000;
-const AUTO_EXPORT_DOWNLOAD_PATH = "memact_ai/captanet-snapshot-latest.json";
-const AUTO_EXPORT_ALARM_NAME = "captanet-auto-export";
-const CAPTANET_AUTO_EXPORT_STATE_KEY = "captanet_auto_export_state";
-const CAPTANET_AUTHORIZED_ORIGINS_KEY = "captanet_authorized_origins";
-const DEFAULT_SNAPSHOT_DOWNLOAD_PATH = "memact_ai/captanet-snapshot.json";
+const AUTO_EXPORT_DOWNLOAD_PATH = "memact_ai/capture-snapshot-latest.json";
+const AUTO_EXPORT_ALARM_NAME = "capture-auto-export";
+const CAPTURE_AUTO_EXPORT_STATE_KEY = "capture_auto_export_state";
+const CAPTURE_AUTHORIZED_ORIGINS_KEY = "capture_authorized_origins";
+const DEFAULT_SNAPSHOT_DOWNLOAD_PATH = "memact_ai/capture-snapshot.json";
 
 let embedWorker = null;
 let embedWorkerReady = false;
@@ -113,9 +113,9 @@ function isEligiblePageOrigin(origin) {
 
 async function refreshAuthorizedBridgeOrigins() {
   try {
-    const stored = await chrome.storage.local.get(CAPTANET_AUTHORIZED_ORIGINS_KEY);
-    const origins = Array.isArray(stored?.[CAPTANET_AUTHORIZED_ORIGINS_KEY])
-      ? stored[CAPTANET_AUTHORIZED_ORIGINS_KEY]
+    const stored = await chrome.storage.local.get(CAPTURE_AUTHORIZED_ORIGINS_KEY);
+    const origins = Array.isArray(stored?.[CAPTURE_AUTHORIZED_ORIGINS_KEY])
+      ? stored[CAPTURE_AUTHORIZED_ORIGINS_KEY]
       : [];
     authorizedBridgeOrigins = new Set(
       origins
@@ -134,7 +134,7 @@ async function authorizeOrigin(origin) {
   }
   const nextOrigins = [...new Set([...authorizedBridgeOrigins, normalizedOrigin])];
   await chrome.storage.local.set({
-    [CAPTANET_AUTHORIZED_ORIGINS_KEY]: nextOrigins,
+    [CAPTURE_AUTHORIZED_ORIGINS_KEY]: nextOrigins,
   });
   authorizedBridgeOrigins = new Set(nextOrigins);
   return normalizedOrigin;
@@ -161,10 +161,10 @@ function normalizeDownloadPath(value, fallback = DEFAULT_SNAPSHOT_DOWNLOAD_PATH)
 function buildUniqueSnapshotDownloadPath(value) {
   const normalized = normalizeDownloadPath(value, DEFAULT_SNAPSHOT_DOWNLOAD_PATH);
   const segments = normalized.split("/").filter(Boolean);
-  const rawFilename = segments.pop() || "captanet-snapshot.json";
+  const rawFilename = segments.pop() || "capture-snapshot.json";
   const extensionMatch = rawFilename.match(/(\.[A-Za-z0-9]+)$/);
   const extension = extensionMatch ? extensionMatch[1] : ".json";
-  const stem = rawFilename.slice(0, rawFilename.length - extension.length) || "captanet-snapshot";
+  const stem = rawFilename.slice(0, rawFilename.length - extension.length) || "capture-snapshot";
   const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
   const randomId =
     typeof crypto?.randomUUID === "function"
@@ -256,8 +256,8 @@ function buildSnapshotSignature(snapshot) {
 
 async function getAutoExportState() {
   try {
-    const stored = await chrome.storage.local.get(CAPTANET_AUTO_EXPORT_STATE_KEY);
-    return stored?.[CAPTANET_AUTO_EXPORT_STATE_KEY] || {};
+    const stored = await chrome.storage.local.get(CAPTURE_AUTO_EXPORT_STATE_KEY);
+    return stored?.[CAPTURE_AUTO_EXPORT_STATE_KEY] || {};
   } catch {
     return {};
   }
@@ -266,7 +266,7 @@ async function getAutoExportState() {
 async function setAutoExportState(state) {
   try {
     await chrome.storage.local.set({
-      [CAPTANET_AUTO_EXPORT_STATE_KEY]: state,
+      [CAPTURE_AUTO_EXPORT_STATE_KEY]: state,
     });
   } catch {
     // Keep auto export best-effort only.
@@ -298,7 +298,7 @@ async function maybeAutoExportLatestSnapshot(options = {}) {
     };
   }
 
-  const snapshot = await getCaptanetSnapshot({ limit: AUTO_EXPORT_SNAPSHOT_LIMIT });
+  const snapshot = await getCaptureSnapshot({ limit: AUTO_EXPORT_SNAPSHOT_LIMIT });
   const eventCount = Number(snapshot?.counts?.events || 0);
   if (!eventCount) {
     return {
@@ -1534,7 +1534,7 @@ async function openMemactSite() {
   await chrome.tabs.create({ url: MEMACT_SITE_URL });
 }
 
-async function enableCaptanetOnTab(tab) {
+async function enableCaptureOnTab(tab) {
   const tabId = Number(tab?.id || 0);
   const normalizedOrigin = normalizeOrigin(tab?.url || "");
   if (!tabId || !normalizedOrigin || !isEligiblePageOrigin(normalizedOrigin)) {
@@ -1543,7 +1543,7 @@ async function enableCaptanetOnTab(tab) {
 
   await authorizeOrigin(normalizedOrigin);
   await chrome.tabs.sendMessage(tabId, {
-    type: "CAPTANET_SITE_ACCESS_CHANGED",
+    type: "CAPTURE_SITE_ACCESS_CHANGED",
     enabled: true,
     origin: normalizedOrigin,
   }).catch(() => {});
@@ -2023,7 +2023,7 @@ chrome.runtime.onStartup.addListener(() => {
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !changes?.[CAPTANET_AUTHORIZED_ORIGINS_KEY]) {
+  if (areaName !== "local" || !changes?.[CAPTURE_AUTHORIZED_ORIGINS_KEY]) {
     return;
   }
   refreshAuthorizedBridgeOrigins().catch(() => {});
@@ -2051,7 +2051,7 @@ chrome.windows.onFocusChanged.addListener(queueSnapshot);
 chrome.action.onClicked.addListener((tab) => {
   const normalizedOrigin = normalizeOrigin(tab?.url || "");
   if (normalizedOrigin && !isAllowedMemactOrigin(normalizedOrigin) && isEligiblePageOrigin(normalizedOrigin)) {
-    enableCaptanetOnTab(tab).catch(() => {});
+    enableCaptureOnTab(tab).catch(() => {});
     return;
   }
   openMemactSite().catch(() => {});
@@ -2298,8 +2298,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === "captanetGetEvents") {
-    getCaptanetEvents({ limit: message.limit })
+  if (message.type === "captureGetEvents") {
+    getCaptureEvents({ limit: message.limit })
       .then((events) =>
         sendResponse({
           ok: true,
@@ -2309,15 +2309,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: String(error?.message || error || "captanet events failed"),
+          error: String(error?.message || error || "capture events failed"),
           events: [],
         })
       );
     return true;
   }
 
-  if (message.type === "captanetGetSessions") {
-    getCaptanetSessions({ limit: message.limit })
+  if (message.type === "captureGetSessions") {
+    getCaptureSessions({ limit: message.limit })
       .then((sessions) =>
         sendResponse({
           ok: true,
@@ -2327,15 +2327,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: String(error?.message || error || "captanet sessions failed"),
+          error: String(error?.message || error || "capture sessions failed"),
           sessions: [],
         })
       );
     return true;
   }
 
-  if (message.type === "captanetGetActivities") {
-    getCaptanetActivities({ limit: message.limit })
+  if (message.type === "captureGetActivities") {
+    getCaptureActivities({ limit: message.limit })
       .then((activities) =>
         sendResponse({
           ok: true,
@@ -2345,15 +2345,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: String(error?.message || error || "captanet activities failed"),
+          error: String(error?.message || error || "capture activities failed"),
           activities: [],
         })
       );
     return true;
   }
 
-  if (message.type === "captanetGetSnapshot") {
-    getCaptanetSnapshot({ limit: message.limit })
+  if (message.type === "captureGetSnapshot") {
+    getCaptureSnapshot({ limit: message.limit })
       .then((snapshot) =>
         sendResponse({
           ok: true,
@@ -2363,15 +2363,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: String(error?.message || error || "captanet snapshot failed"),
+          error: String(error?.message || error || "capture snapshot failed"),
           snapshot: null,
         })
       );
     return true;
   }
 
-  if (message.type === "captanetExportSnapshot") {
-    getCaptanetSnapshot({ limit: message.limit })
+  if (message.type === "captureExportSnapshot") {
+    getCaptureSnapshot({ limit: message.limit })
       .then(async (snapshot) => {
         const exportResult = await downloadSnapshotToWorkspace(snapshot, {
           filename: message.filename,
@@ -2386,7 +2386,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) =>
         sendResponse({
           ok: false,
-          error: String(error?.message || error || "captanet snapshot export failed"),
+          error: String(error?.message || error || "capture snapshot export failed"),
           snapshot: null,
           saved_to: "",
           download_id: null,

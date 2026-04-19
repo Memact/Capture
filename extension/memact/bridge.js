@@ -1,4 +1,4 @@
-const CAPTANET_AUTHORIZED_ORIGINS_KEY = "captanet_authorized_origins";
+const CAPTURE_AUTHORIZED_ORIGINS_KEY = "capture_authorized_origins";
 
 let pageAccessEnabled = false;
 
@@ -51,9 +51,9 @@ async function isCurrentOriginAuthorized() {
   }
 
   try {
-    const stored = await chrome.storage.local.get(CAPTANET_AUTHORIZED_ORIGINS_KEY);
-    const origins = Array.isArray(stored?.[CAPTANET_AUTHORIZED_ORIGINS_KEY])
-      ? stored[CAPTANET_AUTHORIZED_ORIGINS_KEY]
+    const stored = await chrome.storage.local.get(CAPTURE_AUTHORIZED_ORIGINS_KEY);
+    const origins = Array.isArray(stored?.[CAPTURE_AUTHORIZED_ORIGINS_KEY])
+      ? stored[CAPTURE_AUTHORIZED_ORIGINS_KEY]
       : [];
     return origins
       .map((origin) => normalizeOrigin(origin))
@@ -71,7 +71,7 @@ function injectPageApi() {
   if (!pageAccessEnabled) {
     return;
   }
-  if (document.documentElement?.dataset?.captanetPageApi === "ready") {
+  if (document.documentElement?.dataset?.capturePageApi === "ready") {
     return;
   }
 
@@ -79,10 +79,10 @@ function injectPageApi() {
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL("page-api.js");
     script.async = false;
-    script.dataset.captanetPageApi = "true";
+    script.dataset.capturePageApi = "true";
     script.addEventListener("load", () => {
       try {
-        document.documentElement.dataset.captanetPageApi = "ready";
+        document.documentElement.dataset.capturePageApi = "ready";
       } catch (_) {
         // Ignore DOM marker failures.
       }
@@ -98,7 +98,7 @@ function injectPageApi() {
 }
 
 function isBridgeRequestType(type) {
-  return typeof type === "string" && (type.startsWith("MEMACT_") || type.startsWith("CAPTANET_"));
+  return typeof type === "string" && (type.startsWith("MEMACT_") || type.startsWith("CAPTURE_"));
 }
 
 function announceReady() {
@@ -169,54 +169,54 @@ window.addEventListener("message", async (event) => {
         status,
         requestId
       });
-    } else if (type === "CAPTANET_GET_EVENTS") {
+    } else if (type === "CAPTURE_GET_EVENTS") {
       const response = await chrome.runtime.sendMessage({
-        type: "captanetGetEvents",
+        type: "captureGetEvents",
         limit: payload?.limit || 3000
       });
       forwardToPage({
-        type: "CAPTANET_GET_EVENTS_RESULT",
+        type: "CAPTURE_GET_EVENTS_RESULT",
         response,
         requestId
       });
-    } else if (type === "CAPTANET_GET_SESSIONS") {
+    } else if (type === "CAPTURE_GET_SESSIONS") {
       const response = await chrome.runtime.sendMessage({
-        type: "captanetGetSessions",
+        type: "captureGetSessions",
         limit: payload?.limit || 3000
       });
       forwardToPage({
-        type: "CAPTANET_GET_SESSIONS_RESULT",
+        type: "CAPTURE_GET_SESSIONS_RESULT",
         response,
         requestId
       });
-    } else if (type === "CAPTANET_GET_ACTIVITIES") {
+    } else if (type === "CAPTURE_GET_ACTIVITIES") {
       const response = await chrome.runtime.sendMessage({
-        type: "captanetGetActivities",
+        type: "captureGetActivities",
         limit: payload?.limit || 3000
       });
       forwardToPage({
-        type: "CAPTANET_GET_ACTIVITIES_RESULT",
+        type: "CAPTURE_GET_ACTIVITIES_RESULT",
         response,
         requestId
       });
-    } else if (type === "CAPTANET_GET_SNAPSHOT") {
+    } else if (type === "CAPTURE_GET_SNAPSHOT") {
       const response = await chrome.runtime.sendMessage({
-        type: "captanetGetSnapshot",
+        type: "captureGetSnapshot",
         limit: payload?.limit || 3000
       });
       forwardToPage({
-        type: "CAPTANET_GET_SNAPSHOT_RESULT",
+        type: "CAPTURE_GET_SNAPSHOT_RESULT",
         response,
         requestId
       });
-    } else if (type === "CAPTANET_EXPORT_SNAPSHOT") {
+    } else if (type === "CAPTURE_EXPORT_SNAPSHOT") {
       const response = await chrome.runtime.sendMessage({
-        type: "captanetExportSnapshot",
+        type: "captureExportSnapshot",
         limit: payload?.limit || 3000,
         filename: payload?.filename || "",
       });
       forwardToPage({
-        type: "CAPTANET_EXPORT_SNAPSHOT_RESULT",
+        type: "CAPTURE_EXPORT_SNAPSHOT_RESULT",
         response,
         requestId
       });
@@ -295,12 +295,12 @@ window.addEventListener("message", async (event) => {
 });
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message?.type === "CAPTANET_SITE_ACCESS_CHANGED" && message.enabled) {
+  if (message?.type === "CAPTURE_SITE_ACCESS_CHANGED" && message.enabled) {
     pageAccessEnabled = true;
     injectPageApi();
     announceReady();
     forwardToPage({
-      type: "CAPTANET_SITE_ACCESS_CHANGED",
+      type: "CAPTURE_SITE_ACCESS_CHANGED",
       enabled: true,
       origin: message.origin || normalizeOrigin(location.href),
     });

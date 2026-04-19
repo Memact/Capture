@@ -10,7 +10,7 @@ const projectRoot = path.resolve(__dirname, '..')
 const requiredPaths = [
   'extension/memact/background.js',
   'extension/memact/bridge.js',
-  'extension/memact/captanet-api.js',
+  'extension/memact/capture-api.js',
   'extension/memact/embed-worker.js',
   'extension/memact/page-api.js',
   'extension/memact/Readability.js',
@@ -23,7 +23,7 @@ const requiredPaths = [
 const syntaxCheckTargets = [
   'extension/memact/background.js',
   'extension/memact/bridge.js',
-  'extension/memact/captanet-api.js',
+  'extension/memact/capture-api.js',
   'extension/memact/embed-worker.js',
   'extension/memact/page-api.js',
   'scripts/package-extension.mjs',
@@ -68,7 +68,7 @@ async function main() {
     runSyntaxCheck(relativePath)
   }
 
-  console.log('Captanet checks passed.')
+  console.log('Capture checks passed.')
 }
 
 main().catch((error) => {

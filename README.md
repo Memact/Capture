@@ -43,19 +43,19 @@ Downstream systems should consume Capture only through the public snapshot/API b
 
 Primary surface:
 
-- `extension/memact/captanet-api.js`
+- `extension/memact/capture-api.js`
 - `docs/api-contract.md`
 
 Compatibility note:
 
-The runtime object is still named `window.captanet` and the snapshot files are still named `captanet-snapshot-*.json` for extension compatibility. The public product/repo name is now `Capture`.
+The runtime object is still named `window.capture` and the snapshot files are still named `capture-snapshot-*.json` for extension compatibility. The public product/repo name is now `Capture`.
 
 Public functions:
 
 - `getEvents({ limit })`
 - `getSessions({ limit })`
 - `getActivities({ limit })`
-- `getCaptanetSnapshot({ limit })`
+- `getCaptureSnapshot({ limit })`
 
 ## Snapshot Export
 
@@ -68,13 +68,13 @@ Capture snapshots contain:
 The extension automatically refreshes a rolling snapshot while it captures:
 
 ```text
-C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-latest.json
+C:\Users\sujay\Downloads\memact_ai\capture-snapshot-latest.json
 ```
 
 Manual archive exports are still available from an authorized page:
 
 ```js
-await window.captanet.exportSnapshot({
+await window.capture.exportSnapshot({
   limit: 3000,
 });
 ```
@@ -82,7 +82,7 @@ await window.captanet.exportSnapshot({
 Manual exports are written as:
 
 ```text
-C:\Users\sujay\Downloads\memact_ai\captanet-snapshot-<timestamp>-<id>.json
+C:\Users\sujay\Downloads\memact_ai\capture-snapshot-<timestamp>-<id>.json
 ```
 
 ## Terminal Quickstart
@@ -141,7 +141,7 @@ Capture refreshes on:
 To inspect a snapshot from an authorized page:
 
 ```js
-const snapshot = await window.captanet.getSnapshot({ limit: 50 });
+const snapshot = await window.capture.getSnapshot({ limit: 50 });
 console.log(snapshot.activities[0]);
 ```
 
@@ -151,7 +151,7 @@ The intended local pipeline is:
 
 ```powershell
 cd ..\inference
-npm run infer -- --input ..\captanet-snapshot-latest.json --format json
+npm run infer -- --input ..\capture-snapshot-latest.json --format json
 ```
 
 Then feed the Inference output into Schema, Origin, Influence, or Interface.

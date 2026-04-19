@@ -135,7 +135,7 @@ function toTitleCase(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function isInternalCaptanetEvent(event) {
+function isInternalCaptureEvent(event) {
   try {
     const parsed = new URL(event.url || "");
     const hostname = parsed.hostname.replace(/^www\./i, "").toLowerCase();
@@ -254,7 +254,7 @@ export function normalizeCapturedEvents(
   return (Array.isArray(rawEvents) ? rawEvents : [])
     .map(normalizeCapturedEvent)
     .filter((event) => event.timestamp)
-    .filter((event) => (includeInternal ? true : !isInternalCaptanetEvent(event)))
+    .filter((event) => (includeInternal ? true : !isInternalCaptureEvent(event)))
     .filter((event) => (includeSkipped ? true : !shouldSkipCaptureProfile(event.context_profile || event)))
     .sort((left, right) => left.timestamp - right.timestamp || Number(left.id || 0) - Number(right.id || 0));
 }
@@ -480,7 +480,7 @@ export function buildActivities(events, { cosineSimilarity }) {
   };
 }
 
-export function createCaptanetActivitySnapshot(rawEvents, { cosineSimilarity }) {
+export function createCaptureActivitySnapshot(rawEvents, { cosineSimilarity }) {
   const events = normalizeCapturedEvents(rawEvents);
   const { activities } = buildActivities(events, { cosineSimilarity });
   return {

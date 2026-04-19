@@ -1,14 +1,14 @@
-(function installCaptanetPageApi() {
-  if (window.captanet) {
+(function installCapturePageApi() {
+  if (window.capture) {
     return;
   }
 
-  const DEFAULT_SNAPSHOT_FILENAME = "memact_ai/captanet-snapshot.json";
+  const DEFAULT_SNAPSHOT_FILENAME = "memact_ai/capture-snapshot.json";
   const pendingRequests = new Map();
   let bridgeReady = false;
   let requestCounter = 0;
 
-  function nextRequestId(prefix = "captanet") {
+  function nextRequestId(prefix = "capture") {
     requestCounter += 1;
     return `${prefix}-${Date.now()}-${requestCounter}`;
   }
@@ -21,7 +21,7 @@
     return new Promise((resolve, reject) => {
       const timeoutId = window.setTimeout(() => {
         window.removeEventListener("message", onReady);
-        reject(new Error("Captanet bridge is not ready on this page."));
+        reject(new Error("Capture bridge is not ready on this page."));
       }, timeoutMs);
 
       function onReady(event) {
@@ -86,7 +86,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = filename || "captanet-snapshot.json";
+    link.download = filename || "capture-snapshot.json";
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -98,10 +98,10 @@
       .replace(/\\/g, "/")
       .split("/")
       .filter(Boolean)
-      .at(-1) || "captanet-snapshot.json";
+      .at(-1) || "capture-snapshot.json";
     const extensionMatch = normalized.match(/(\.[A-Za-z0-9]+)$/);
     const extension = extensionMatch ? extensionMatch[1] : ".json";
-    const stem = normalized.slice(0, normalized.length - extension.length) || "captanet-snapshot";
+    const stem = normalized.slice(0, normalized.length - extension.length) || "capture-snapshot";
     const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
     const randomId =
       typeof crypto?.randomUUID === "function"
@@ -127,7 +127,7 @@
 
     if (data.type === "MEMACT_ERROR") {
       finishPending(data.requestId, ({ reject }) => {
-        reject(new Error(String(data.error || "Captanet bridge failed.")));
+        reject(new Error(String(data.error || "Capture bridge failed.")));
       });
       return;
     }
@@ -141,7 +141,7 @@
     });
   });
 
-  async function expectCaptanetResponse(type, payload = {}) {
+  async function expectCaptureResponse(type, payload = {}) {
     const result = await requestBridge(type, payload);
     const response = result?.response;
     if (!response?.ok) {
@@ -150,7 +150,7 @@
     return response;
   }
 
-  window.captanet = {
+  window.capture = {
     isReady() {
       return bridgeReady;
     },
@@ -158,19 +158,19 @@
       return waitForBridgeReady(timeoutMs).then(() => true);
     },
     async getEvents(options = {}) {
-      const response = await expectCaptanetResponse("CAPTANET_GET_EVENTS", options);
+      const response = await expectCaptureResponse("CAPTURE_GET_EVENTS", options);
       return Array.isArray(response.events) ? response.events : [];
     },
     async getSessions(options = {}) {
-      const response = await expectCaptanetResponse("CAPTANET_GET_SESSIONS", options);
+      const response = await expectCaptureResponse("CAPTURE_GET_SESSIONS", options);
       return Array.isArray(response.sessions) ? response.sessions : [];
     },
     async getActivities(options = {}) {
-      const response = await expectCaptanetResponse("CAPTANET_GET_ACTIVITIES", options);
+      const response = await expectCaptureResponse("CAPTURE_GET_ACTIVITIES", options);
       return Array.isArray(response.activities) ? response.activities : [];
     },
     async getSnapshot(options = {}) {
-      const response = await expectCaptanetResponse("CAPTANET_GET_SNAPSHOT", options);
+      const response = await expectCaptureResponse("CAPTURE_GET_SNAPSHOT", options);
       return response.snapshot || null;
     },
     async exportSnapshot(options = {}) {
@@ -184,19 +184,19 @@
       if (!download) {
         const snapshot = await this.getSnapshot({ limit });
         if (!snapshot) {
-          throw new Error("Captanet did not return a snapshot.");
+          throw new Error("Capture did not return a snapshot.");
         }
         return snapshot;
       }
 
       try {
-        const response = await expectCaptanetResponse("CAPTANET_EXPORT_SNAPSHOT", {
+        const response = await expectCaptureResponse("CAPTURE_EXPORT_SNAPSHOT", {
           limit,
           filename,
         });
         const snapshot = response.snapshot || null;
         if (!snapshot) {
-          throw new Error("Captanet did not return a snapshot.");
+          throw new Error("Capture did not return a snapshot.");
         }
         snapshot.export_meta = {
           saved_to: response.saved_to || filename,
@@ -207,14 +207,14 @@
       } catch (error) {
         if (!allowBrowserFallback) {
           throw new Error(
-            `Captanet could not save the snapshot through the extension runtime. ${String(
+            `Capture could not save the snapshot through the extension runtime. ${String(
               error?.message || error || "Export failed."
             )}`
           );
         }
         const snapshot = await this.getSnapshot({ limit });
         if (!snapshot) {
-          throw new Error("Captanet did not return a snapshot.");
+          throw new Error("Capture did not return a snapshot.");
         }
         const safeFilename = buildUniqueFallbackFilename(filename);
         downloadJson(safeFilename, snapshot);
@@ -236,7 +236,7 @@
   };
 
   window.dispatchEvent(
-    new CustomEvent("captanet-ready", {
+    new CustomEvent("capture-ready", {
       detail: {
         bridgeReady: () => bridgeReady,
       },
