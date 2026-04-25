@@ -102,7 +102,6 @@ These messages are now forwarded through `extension/memact/bridge.js`.
 - `CAPTURE_GET_SESSIONS`
 - `CAPTURE_GET_ACTIVITIES`
 - `CAPTURE_GET_SNAPSHOT`
-- `CAPTURE_EXPORT_SNAPSHOT`
 - `CAPTURE_BOOTSTRAP_HISTORY`
 - `CAPTURE_BOOTSTRAP_STATUS`
 - `CAPTURE_CLEAR_BOOTSTRAP_HISTORY`
@@ -114,7 +113,6 @@ Responses:
 - `CAPTURE_GET_SESSIONS_RESULT`
 - `CAPTURE_GET_ACTIVITIES_RESULT`
 - `CAPTURE_GET_SNAPSHOT_RESULT`
-- `CAPTURE_EXPORT_SNAPSHOT_RESULT`
 - `CAPTURE_BOOTSTRAP_HISTORY_RESULT`
 - `CAPTURE_BOOTSTRAP_STATUS_RESULT`
 - `CAPTURE_CLEAR_BOOTSTRAP_HISTORY_RESULT`
@@ -145,14 +143,12 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 - `window.capture.getSessions({ limit })`
 - `window.capture.getActivities({ limit })`
 - `window.capture.getSnapshot({ limit })`
-- `window.capture.exportSnapshot({ limit, filename, download })`
-- `window.capture.downloadSnapshot({ limit, filename })`
+- `window.capture.exportSnapshot({ limit })`
 
-`exportSnapshot()` returns the same Capture snapshot contract and, by default, asks the extension to save it into `memact_ai/capture-snapshot-<timestamp>-<id>.json` inside the user's Downloads workspace.
+`exportSnapshot()` is now an alias for `getSnapshot()` for developer compatibility. It does not write files.
+`downloadSnapshot()` is intentionally disabled.
 
-`downloadSnapshot()` is a convenience wrapper when you only need the saved file metadata.
-
-Capture does not automatically download rolling snapshots. Live products should use `MEMACT_STATUS`, `memorySignature`, and `CAPTURE_GET_SNAPSHOT` through the bridge so captured data stays local and only moves when a Memact client requests it.
+Capture does not download snapshots. Live products should use `MEMACT_STATUS`, `memorySignature`, and `CAPTURE_GET_SNAPSHOT` through the bridge so captured data stays local and only moves when a Memact client requests it.
 `MEMACT_STATUS.sync` reports `mode: "bridge_signature"` and `automaticDownloads: false` so clients can tell that automatic capture is running without a file-export loop.
 
 This runtime is available by default on:

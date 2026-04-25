@@ -3,7 +3,6 @@
     return;
   }
 
-  const DEFAULT_SNAPSHOT_FILENAME = "memact_ai/capture-snapshot.json";
   const pendingRequests = new Map();
   let bridgeReady = false;
   let requestCounter = 0;
@@ -79,37 +78,6 @@
     fn(entry);
   }
 
-  function downloadJson(filename, data) {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename || "capture-snapshot.json";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  function buildUniqueFallbackFilename(filename) {
-    const normalized = String(filename || DEFAULT_SNAPSHOT_FILENAME)
-      .replace(/\\/g, "/")
-      .split("/")
-      .filter(Boolean)
-      .at(-1) || "capture-snapshot.json";
-    const extensionMatch = normalized.match(/(\.[A-Za-z0-9]+)$/);
-    const extension = extensionMatch ? extensionMatch[1] : ".json";
-    const stem = normalized.slice(0, normalized.length - extension.length) || "capture-snapshot";
-    const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-    const randomId =
-      typeof crypto?.randomUUID === "function"
-        ? crypto.randomUUID().replace(/-/g, "").slice(0, 8)
-        : Math.random().toString(36).slice(2, 10);
-    return `${stem}-${timestamp}-${randomId}${extension}`;
-  }
-
   window.addEventListener("message", (event) => {
     if (event.source !== window) {
       return;
@@ -182,64 +150,14 @@
       return response.bootstrap || null;
     },
     async exportSnapshot(options = {}) {
-      const {
-        limit = 3000,
-        filename = DEFAULT_SNAPSHOT_FILENAME,
-        download = true,
-        allowBrowserFallback = false,
-      } = options || {};
-
-      if (!download) {
-        const snapshot = await this.getSnapshot({ limit });
-        if (!snapshot) {
-          throw new Error("Capture did not return a snapshot.");
-        }
-        return snapshot;
+      const snapshot = await this.getSnapshot({ limit: options?.limit || 3000 });
+      if (!snapshot) {
+        throw new Error("Capture did not return a snapshot.");
       }
-
-      try {
-        const response = await expectCaptureResponse("CAPTURE_EXPORT_SNAPSHOT", {
-          limit,
-          filename,
-        });
-        const snapshot = response.snapshot || null;
-        if (!snapshot) {
-          throw new Error("Capture did not return a snapshot.");
-        }
-        snapshot.export_meta = {
-          saved_to: response.saved_to || filename,
-          download_id: response.download_id || null,
-          fallback_download: false,
-        };
-        return snapshot;
-      } catch (error) {
-        if (!allowBrowserFallback) {
-          throw new Error(
-            `Capture could not save the snapshot through the extension runtime. ${String(
-              error?.message || error || "Export failed."
-            )}`
-          );
-        }
-        const snapshot = await this.getSnapshot({ limit });
-        if (!snapshot) {
-          throw new Error("Capture did not return a snapshot.");
-        }
-        const safeFilename = buildUniqueFallbackFilename(filename);
-        downloadJson(safeFilename, snapshot);
-        snapshot.export_meta = {
-          saved_to: safeFilename,
-          download_id: null,
-          fallback_download: true,
-        };
-        return snapshot;
-      }
+      return snapshot;
     },
-    async downloadSnapshot(options = {}) {
-      const snapshot = await this.exportSnapshot(options);
-      return snapshot?.export_meta || {
-        saved_to: options?.filename || DEFAULT_SNAPSHOT_FILENAME,
-        download_id: null,
-      };
+    async downloadSnapshot() {
+      throw new Error("Capture no longer downloads snapshots. Use getSnapshot() or exportSnapshot() to read the bridge snapshot.");
     },
   };
 

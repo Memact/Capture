@@ -94,7 +94,7 @@ Runtime bridge messages also expose:
 
 Clients should use `memorySignature` before requesting a full snapshot so they do not repeatedly move the same captured data.
 
-## Snapshot Export
+## Snapshot Access
 
 Capture snapshots contain:
 
@@ -102,24 +102,21 @@ Capture snapshots contain:
 - `sessions`
 - `activities`
 
-Capture stores activity locally inside the extension. It does not automatically download captured snapshots to the user's Downloads folder.
+Capture stores activity locally inside the extension. It does not download captured snapshots to the user's Downloads folder.
 
 Downstream systems should use the bridge API and `memorySignature` to request data only when the local memory changed.
 This is the automatic path for the product: Capture keeps recording useful activity, and clients sync through the bridge instead of watching downloaded files.
 
-Manual archive exports are still available from an authorized page:
+Developer snapshot reads are still available from an authorized page:
 
 ```js
-await window.capture.exportSnapshot({
+await window.capture.getSnapshot({
   limit: 3000,
 });
 ```
 
-Manual exports are written as:
-
-```text
-C:\Users\sujay\Downloads\memact_ai\capture-snapshot-<timestamp>-<id>.json
-```
+`window.capture.exportSnapshot({ limit })` is kept as a compatibility alias for `getSnapshot()`.
+It returns the snapshot object and does not write a file.
 
 ## Terminal Quickstart
 

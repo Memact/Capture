@@ -10,7 +10,7 @@
     "48": "icons/memact_48.png",
     "128": "icons/memact_128.png"
   },
-  "permissions": ["tabs", "windows", "scripting", "storage", "unlimitedStorage", "webNavigation", "downloads", "history"],
+  "permissions": ["tabs", "windows", "scripting", "storage", "unlimitedStorage", "webNavigation", "history"],
   "host_permissions": [
     "<all_urls>",
     "http://localhost/*",

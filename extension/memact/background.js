@@ -54,7 +54,6 @@ const AUTO_CAPTURE_HEARTBEAT_MS = 90000;
 const AUTO_CAPTURE_MUTATION_DELAY_MS = 2200;
 const AUTO_CAPTURE_REASON_MAX_AGE_MS = 15000;
 const CAPTURE_AUTHORIZED_ORIGINS_KEY = "capture_authorized_origins";
-const DEFAULT_SNAPSHOT_DOWNLOAD_PATH = "memact_ai/capture-snapshot.json";
 
 let embedWorker = null;
 let embedWorkerReady = false;
@@ -147,53 +146,6 @@ function hasAuthorizedOrigin(origin) {
     return false;
   }
   return isAllowedMemactOrigin(normalizedOrigin) || authorizedBridgeOrigins.has(normalizedOrigin);
-}
-
-function normalizeDownloadPath(value, fallback = DEFAULT_SNAPSHOT_DOWNLOAD_PATH) {
-  const normalized = String(value || fallback)
-    .replace(/\\/g, "/")
-    .split("/")
-    .map((segment) => segment.trim())
-    .filter((segment) => segment && segment !== "." && segment !== "..")
-    .join("/");
-  return normalized || fallback;
-}
-
-function buildUniqueSnapshotDownloadPath(value) {
-  const normalized = normalizeDownloadPath(value, DEFAULT_SNAPSHOT_DOWNLOAD_PATH);
-  const segments = normalized.split("/").filter(Boolean);
-  const rawFilename = segments.pop() || "capture-snapshot.json";
-  const extensionMatch = rawFilename.match(/(\.[A-Za-z0-9]+)$/);
-  const extension = extensionMatch ? extensionMatch[1] : ".json";
-  const stem = rawFilename.slice(0, rawFilename.length - extension.length) || "capture-snapshot";
-  const timestamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  const randomId =
-    typeof crypto?.randomUUID === "function"
-      ? crypto.randomUUID().replace(/-/g, "").slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  const uniqueFilename = `${stem}-${timestamp}-${randomId}${extension}`;
-  return [...segments, uniqueFilename].join("/");
-}
-
-async function downloadSnapshotToWorkspace(snapshot, options = {}) {
-  const filename =
-    options.unique === false
-      ? normalizeDownloadPath(options.filename, DEFAULT_SNAPSHOT_DOWNLOAD_PATH)
-      : buildUniqueSnapshotDownloadPath(options.filename);
-  const payload = JSON.stringify(snapshot, null, 2);
-  const encodedPayload = encodeURIComponent(payload);
-  const dataUrl = `data:application/json;charset=utf-8,${encodedPayload}`;
-  const downloadId = await chrome.downloads.download({
-    url: dataUrl,
-    filename,
-    conflictAction: options.overwrite ? "overwrite" : "uniquify",
-    saveAs: false,
-  });
-
-  return {
-    downloadId,
-    filename,
-  };
 }
 
 function detectBrowserKey() {
@@ -2281,31 +2233,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ok: false,
           error: String(error?.message || error || "capture snapshot failed"),
           snapshot: null,
-        })
-      );
-    return true;
-  }
-
-  if (message.type === "captureExportSnapshot") {
-    getCaptureSnapshot({ limit: message.limit })
-      .then(async (snapshot) => {
-        const exportResult = await downloadSnapshotToWorkspace(snapshot, {
-          filename: message.filename,
-        });
-        sendResponse({
-          ok: true,
-          snapshot,
-          saved_to: exportResult.filename,
-          download_id: exportResult.downloadId,
-        });
-      })
-      .catch((error) =>
-        sendResponse({
-          ok: false,
-          error: String(error?.message || error || "capture snapshot export failed"),
-          snapshot: null,
-          saved_to: "",
-          download_id: null,
         })
       );
     return true;

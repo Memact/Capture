@@ -239,17 +239,6 @@ window.addEventListener("message", async (event) => {
         response,
         requestId
       });
-    } else if (type === "CAPTURE_EXPORT_SNAPSHOT") {
-      const response = await chrome.runtime.sendMessage({
-        type: "captureExportSnapshot",
-        limit: payload?.limit || 3000,
-        filename: payload?.filename || "",
-      });
-      forwardToPage({
-        type: "CAPTURE_EXPORT_SNAPSHOT_RESULT",
-        response,
-        requestId
-      });
     } else if (type === "MEMACT_STATS") {
       const stats = await chrome.runtime.sendMessage({ type: "stats" });
       forwardToPage({
