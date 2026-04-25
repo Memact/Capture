@@ -59,6 +59,7 @@ let embedWorker = null;
 let embedWorkerReady = false;
 let embedPending = new Map();
 let snapshotTimer = null;
+let memoryPulseTimer = null;
 let authorizedBridgeOrigins = new Set();
 let snapshotInFlight = false;
 let snapshotQueuedWhileRunning = false;
@@ -125,6 +126,95 @@ async function refreshAuthorizedBridgeOrigins() {
   } catch {
     authorizedBridgeOrigins = new Set();
   }
+}
+
+async function buildMemoryStatus() {
+  const [eventCount, sessionCount, lastEventAt, bootstrapState] = await Promise.all([
+    getEventCount(),
+    getSessionCount(),
+    getLatestEventTimestamp(),
+    getBootstrapImportState(),
+  ]);
+
+  const memorySignature = [
+    eventCount,
+    sessionCount,
+    normalizeText(lastEventAt, 80),
+    normalizeText(bootstrapState?.status, 32),
+    normalizeText(bootstrapState?.imported_at, 80),
+    Number(bootstrapState?.imported_count || 0),
+  ].join("|");
+
+  return {
+    ready: true,
+    eventCount,
+    sessionCount,
+    lastEventAt,
+    modelReady: Boolean(embedWorkerReady),
+    extensionVersion: EXTENSION_VERSION,
+    captureSchemaVersion: 2,
+    memorySignature,
+    sync: {
+      mode: "memory_pulse_bridge",
+      automaticCapture: true,
+      automaticDownloads: false,
+    },
+    bootstrap: bootstrapState,
+  };
+}
+
+function bridgePulseUrlPatterns() {
+  const patterns = new Set([
+    "https://memact.com/*",
+    "https://www.memact.com/*",
+    "http://localhost/*",
+    "https://localhost/*",
+    "http://127.0.0.1/*",
+    "https://127.0.0.1/*",
+    "http://0.0.0.0/*",
+    "https://0.0.0.0/*",
+  ]);
+
+  for (const origin of authorizedBridgeOrigins) {
+    if (/^https?:\/\//i.test(origin)) {
+      patterns.add(`${origin}/*`);
+    }
+  }
+
+  return [...patterns];
+}
+
+async function broadcastMemoryPulse(reason = "capture") {
+  const pulse = await buildMemoryStatus();
+  pulse.sync = {
+    ...pulse.sync,
+    reason: normalizeText(reason, 48) || "capture",
+    emittedAt: new Date().toISOString(),
+  };
+
+  const tabs = await chrome.tabs.query({
+    url: bridgePulseUrlPatterns(),
+  });
+
+  await Promise.all(
+    tabs.map((tab) =>
+      tab?.id
+        ? chrome.tabs
+            .sendMessage(tab.id, {
+              type: "MEMACT_MEMORY_PULSE",
+              pulse,
+            })
+            .catch(() => {})
+        : Promise.resolve()
+    )
+  );
+}
+
+function scheduleMemoryPulse(reason = "capture") {
+  clearTimeout(memoryPulseTimer);
+  memoryPulseTimer = setTimeout(() => {
+    broadcastMemoryPulse(reason).catch(() => {});
+  }, 700);
 }
 
 async function authorizeOrigin(origin) {
@@ -1257,6 +1347,7 @@ async function processAndStore(tabData) {
   const appendResult = await appendEvent(event);
   if (!appendResult?.skipped) {
     invalidateEventSearchIndex();
+    scheduleMemoryPulse(interactionType);
   }
   return appendResult;
 }
@@ -1351,6 +1442,7 @@ async function enableCaptureOnTab(tab) {
     origin: normalizedOrigin,
   }).catch(() => {});
   queueSnapshot();
+  scheduleMemoryPulse("site_access");
   return true;
 }
 
@@ -2044,37 +2136,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "status") {
-    Promise.all([
-      getEventCount(),
-      getSessionCount(),
-      getLatestEventTimestamp(),
-      getBootstrapImportState(),
-    ])
-      .then(([eventCount, sessionCount, lastEventAt, bootstrapState]) =>
-        sendResponse({
-          ready: true,
-          eventCount,
-          sessionCount,
-          lastEventAt,
-          modelReady: Boolean(embedWorkerReady),
-          extensionVersion: EXTENSION_VERSION,
-          captureSchemaVersion: 2,
-          memorySignature: [
-            eventCount,
-            sessionCount,
-            normalizeText(lastEventAt, 80),
-            normalizeText(bootstrapState?.status, 32),
-            normalizeText(bootstrapState?.imported_at, 80),
-            Number(bootstrapState?.imported_count || 0),
-          ].join("|"),
-          sync: {
-            mode: "bridge_signature",
-            automaticCapture: true,
-            automaticDownloads: false,
-          },
-          bootstrap: bootstrapState,
-        })
-      )
+    buildMemoryStatus()
+      .then((status) => sendResponse(status))
       .catch((error) =>
         sendResponse({
           ready: false,
@@ -2085,7 +2148,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           modelReady: Boolean(embedWorkerReady),
           error: String(error?.message || error || "status failed"),
           sync: {
-            mode: "bridge_signature",
+            mode: "memory_pulse_bridge",
             automaticCapture: true,
             automaticDownloads: false,
           },
@@ -2109,6 +2172,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     ])
       .then(([result, bootstrap]) => {
         invalidateEventSearchIndex();
+        scheduleMemoryPulse("clear_bootstrap_import");
         sendResponse({
           ok: true,
           deletedCount: Number(result?.deletedCount || 0),
@@ -2151,6 +2215,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       limit: message.limit,
     })
       .then((bootstrap) => {
+        scheduleMemoryPulse("bootstrap_import");
         sendResponse({
           ok: Boolean(bootstrap?.ok),
           bootstrap,
@@ -2253,6 +2318,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     clearAllData()
       .then(() => {
         invalidateEventSearchIndex();
+        scheduleMemoryPulse("clear_all_data");
         sendResponse({ ok: true });
       })
       .catch((error) =>

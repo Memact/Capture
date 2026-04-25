@@ -38,7 +38,7 @@ Capture can seed the local store on first use with a limited import of recent br
 - filters noisy or low-value events
 - stores local event history
 - builds sessions and activity groups
-- exports structured snapshots
+- exposes structured snapshots through the bridge
 - ranks searches with local sentence-transformer embeddings
 - exposes local bridge APIs for downstream engines without automatic file downloads
 
@@ -87,12 +87,26 @@ Runtime bridge messages also expose:
 
 - `MEMACT_STATUS`
   Returns counts, extension state, bootstrap state, and a lightweight `memorySignature`.
+- `MEMACT_MEMORY_PULSE`
+  Automatically tells an authorized Memact surface that local memory changed.
+  This pulse contains counts, state, and a signature only. It does not send captured page content.
 - `CAPTURE_BOOTSTRAP_HISTORY`
   Starts local first-use browser activity import.
 - `CAPTURE_CLEAR_BOOTSTRAP_HISTORY`
   Clears only browser-imported seed memories.
 
 Clients should use `memorySignature` before requesting a full snapshot so they do not repeatedly move the same captured data.
+
+## Automatic Sync Model
+
+Capture uses a lightweight Memory Pulse model instead of repeated downloads.
+
+- Capture records useful activity automatically while the user browses.
+- When local memory changes, Capture emits a small `MEMACT_MEMORY_PULSE` to authorized Memact pages.
+- The pulse carries only status, counts, and `memorySignature`.
+- Website refreshes its local knowledge only when that signature changes.
+- No captured snapshot is written to Downloads.
+- No full captured dataset is sent to Gemini. Downstream answers use selected schema/origin/influence evidence only.
 
 ## Snapshot Access
 

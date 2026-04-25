@@ -113,6 +113,19 @@ function announceReady() {
   forwardToPage({ type: "MEMACT_EXTENSION_READY" });
 }
 
+chrome.runtime.onMessage.addListener((message) => {
+  if (!pageAccessEnabled) {
+    return false;
+  }
+  if (message?.type === "MEMACT_MEMORY_PULSE") {
+    forwardToPage({
+      type: "MEMACT_MEMORY_PULSE",
+      pulse: message.pulse || null,
+    });
+  }
+  return false;
+});
+
 async function refreshPageAccess({ announce = false } = {}) {
   pageAccessEnabled = await isCurrentOriginAuthorized();
   if (!pageAccessEnabled) {
