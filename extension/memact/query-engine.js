@@ -1499,6 +1499,45 @@ function classifyQueryIntent(query) {
   };
 }
 
+function buildSemanticQueryFrames(query, queryIntent) {
+  const normalized = normalizeText(query, 400);
+  if (!normalized) {
+    return [];
+  }
+
+  const frames = [normalized];
+  const lower = normalized.toLowerCase();
+  const looksReflective =
+    queryIntent?.reflective ||
+    queryIntent?.broadQuestion ||
+    /\b(feel|think|believe|keep thinking|why do i|should i|need to|behind|prove myself|worried|anxious|stuck)\b/i.test(
+      lower
+    );
+
+  if (looksReflective) {
+    frames.push(`sources that may have shaped this thought: ${normalized}`);
+    frames.push(`activity, pages, videos, searches, and posts related to: ${normalized}`);
+    frames.push(`evidence connected to the feeling or belief: ${normalized}`);
+  } else {
+    frames.push(`web activity related to: ${normalized}`);
+    frames.push(`saved source about: ${normalized}`);
+  }
+
+  return Array.from(new Set(frames));
+}
+
+function maxCosineSimilarity(vectors, eventEmbedding, cosineSimilarity) {
+  if (!eventEmbedding?.length) {
+    return 0;
+  }
+  return (vectors || []).reduce((best, vector) => {
+    if (!vector?.length) {
+      return best;
+    }
+    return Math.max(best, cosineSimilarity(vector, eventEmbedding));
+  }, 0);
+}
+
 function exactScoreForOperator(event, operator) {
   let score = 0.28;
   if (event.timestamp) {
@@ -1590,9 +1629,11 @@ async function rankEvents(text, events, embedText, cosineSimilarity, options = {
     return [];
   }
 
-  const queryEmbedding = await embedText(normalizedText);
   const tokens = meaningfulTokens(normalizedText);
   const queryIntent = classifyQueryIntent(normalizedText);
+  const queryEmbeddings = await Promise.all(
+    buildSemanticQueryFrames(normalizedText, queryIntent).map((frame) => embedText(frame))
+  );
   const domainHint = hostnameFromUrl(normalizedText) || "";
   const appHint = normalizeText(options.appHint).toLowerCase();
   const operatorName = normalizeText(options.operatorName || "match").toLowerCase();
@@ -1600,7 +1641,7 @@ async function rankEvents(text, events, embedText, cosineSimilarity, options = {
   const now = Date.now();
 
   const scored = events.map((event) => {
-      const semantic = event.embedding.length ? cosineSimilarity(queryEmbedding, event.embedding) : 0;
+      const semantic = maxCosineSimilarity(queryEmbeddings, event.embedding, cosineSimilarity);
       const titleLower = String(event.title || "").toLowerCase();
       const snippetLower = String(event.snippet || "").toLowerCase();
       const urlLower = canonicalUrl(event.url || "");
@@ -1725,7 +1766,7 @@ async function rankEvents(text, events, embedText, cosineSimilarity, options = {
           ? 0.16
           : 0.06;
       const score =
-        semantic * 0.18 +
+        semantic * 0.28 +
         lexical * 0.16 +
         titleBoost * 0.18 +
         keyphraseBoost * 0.04 +

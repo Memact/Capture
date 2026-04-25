@@ -103,6 +103,10 @@ These messages are now forwarded through `extension/memact/bridge.js`.
 - `CAPTURE_GET_ACTIVITIES`
 - `CAPTURE_GET_SNAPSHOT`
 - `CAPTURE_EXPORT_SNAPSHOT`
+- `CAPTURE_BOOTSTRAP_HISTORY`
+- `CAPTURE_BOOTSTRAP_STATUS`
+- `CAPTURE_CLEAR_BOOTSTRAP_HISTORY`
+- `MEMACT_STATUS`
 
 Responses:
 
@@ -111,6 +115,25 @@ Responses:
 - `CAPTURE_GET_ACTIVITIES_RESULT`
 - `CAPTURE_GET_SNAPSHOT_RESULT`
 - `CAPTURE_EXPORT_SNAPSHOT_RESULT`
+- `CAPTURE_BOOTSTRAP_HISTORY_RESULT`
+- `CAPTURE_BOOTSTRAP_STATUS_RESULT`
+- `CAPTURE_CLEAR_BOOTSTRAP_HISTORY_RESULT`
+- `MEMACT_STATUS_RESULT`
+
+`MEMACT_STATUS` includes a lightweight sync signature:
+
+```json
+{
+  "ready": true,
+  "eventCount": 120,
+  "sessionCount": 28,
+  "lastEventAt": "2026-04-25T05:00:00.000Z",
+  "memorySignature": "120|28|2026-04-25T05:00:00.000Z|complete|2026-04-25T04:58:00.000Z|54"
+}
+```
+
+Clients should compare `memorySignature` before asking for `CAPTURE_GET_SNAPSHOT`.
+If the signature did not change, the previous knowledge envelope is still current.
 
 ## Browser Runtime Export
 

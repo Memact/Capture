@@ -28,6 +28,7 @@ Capture can seed the local store on first use with a limited import of recent br
 - It creates deterministic metadata-based event records.
 - The user must explicitly allow it from the Interface popup.
 - It can be requested again through the bridge.
+- It can be cleared separately without deleting future captured activity.
 - Those imported events are a starting layer until richer live capture takes over.
 
 ## What Capture Does
@@ -38,6 +39,7 @@ Capture can seed the local store on first use with a limited import of recent br
 - stores local event history
 - builds sessions and activity groups
 - exports structured snapshots
+- ranks searches with local sentence-transformer embeddings
 - maintains a rolling autosaved snapshot for downstream engines
 
 ## Website Evidence Captured
@@ -80,6 +82,17 @@ Public functions:
 - `getSessions({ limit })`
 - `getActivities({ limit })`
 - `getCaptureSnapshot({ limit })`
+
+Runtime bridge messages also expose:
+
+- `MEMACT_STATUS`
+  Returns counts, extension state, bootstrap state, and a lightweight `memorySignature`.
+- `CAPTURE_BOOTSTRAP_HISTORY`
+  Starts local first-use browser activity import.
+- `CAPTURE_CLEAR_BOOTSTRAP_HISTORY`
+  Clears only browser-imported seed memories.
+
+Clients should use `memorySignature` before requesting a full snapshot so they do not repeatedly move the same captured data.
 
 ## Snapshot Export
 

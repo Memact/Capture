@@ -394,6 +394,15 @@ export async function getEventCount() {
   return count || 0;
 }
 
+export async function getLatestEventTimestamp() {
+  const db = await getDb();
+  const tx = db.transaction("events", "readonly");
+  const index = tx.objectStore("events").index("occurred_at");
+  const cursor = await openRequest(index.openCursor(null, "prev"));
+  await txDone(tx).catch(() => {});
+  return cursor?.value?.occurred_at || "";
+}
+
 export async function getSessionCount() {
   const db = await getDb();
   const tx = db.transaction("sessions", "readonly");
@@ -431,12 +440,46 @@ export async function clearAllData() {
   await txDone(tx);
 }
 
+export async function clearBootstrapImportedEvents() {
+  const db = await getDb();
+  const tx = db.transaction(["events", "sessions", "settings"], "readwrite");
+  const eventStore = tx.objectStore("events");
+  const sourceIndex = eventStore.index("source");
+  let deletedCount = 0;
+
+  await new Promise((resolve, reject) => {
+    const request = sourceIndex.openCursor(IDBKeyRange.only("history-bootstrap"));
+    request.addEventListener("success", () => {
+      const cursor = request.result;
+      if (!cursor) {
+        resolve();
+        return;
+      }
+      cursor.delete();
+      deletedCount += 1;
+      cursor.continue();
+    });
+    request.addEventListener("error", () => reject(request.error));
+  });
+
+  // Sessions are derived again from remaining events at query time. Clearing the
+  // cached session table prevents old imported sessions from staying visible in stats.
+  tx.objectStore("sessions").clear();
+  tx.objectStore("settings").delete("last_capture_by_url");
+  await txDone(tx);
+  return { deletedCount };
+}
+
 export async function getStats() {
-  const [eventCount, sessionCount] = await Promise.all([getEventCount(), getSessionCount()]);
+  const [eventCount, sessionCount, lastEventAt] = await Promise.all([
+    getEventCount(),
+    getSessionCount(),
+    getLatestEventTimestamp(),
+  ]);
   const recentEvents = await getRecentEvents(1).catch(() => []);
   return {
     eventCount,
     sessionCount,
-    lastEventAt: recentEvents[0]?.occurred_at || null
+    lastEventAt: lastEventAt || recentEvents[0]?.occurred_at || null
   };
 }

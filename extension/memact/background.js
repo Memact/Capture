@@ -1,8 +1,10 @@
 import {
   appendEvent,
+  clearBootstrapImportedEvents,
   clearAllData,
   cosineSimilarity,
   getEventCount,
+  getLatestEventTimestamp,
   getRecentEvents,
   getSessionCount,
   getStats,
@@ -38,6 +40,7 @@ import {
 import {
   beginBootstrapImport,
   getBootstrapImportState,
+  resetBootstrapImportState,
 } from "./bootstrap-import.js";
 
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
@@ -2268,17 +2271,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     Promise.all([
       getEventCount(),
       getSessionCount(),
+      getLatestEventTimestamp(),
       getAutoExportState(),
       getBootstrapImportState(),
     ])
-      .then(([eventCount, sessionCount, autoExportState, bootstrapState]) =>
+      .then(([eventCount, sessionCount, lastEventAt, autoExportState, bootstrapState]) =>
         sendResponse({
           ready: true,
           eventCount,
           sessionCount,
+          lastEventAt,
           modelReady: Boolean(embedWorkerReady),
           extensionVersion: EXTENSION_VERSION,
           captureSchemaVersion: 2,
+          memorySignature: [
+            eventCount,
+            sessionCount,
+            normalizeText(lastEventAt, 80),
+            normalizeText(bootstrapState?.status, 32),
+            normalizeText(bootstrapState?.imported_at, 80),
+            Number(bootstrapState?.imported_count || 0),
+          ].join("|"),
           autoExport: {
             enabled: true,
             savedTo:
@@ -2295,6 +2308,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           ready: false,
           eventCount: 0,
           sessionCount: 0,
+          lastEventAt: "",
+          memorySignature: "error",
           modelReady: Boolean(embedWorkerReady),
           error: String(error?.message || error || "status failed"),
           autoExport: {
@@ -2307,6 +2322,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             status: "error",
             error: String(error?.message || error || "status failed"),
           },
+        })
+      );
+    return true;
+  }
+
+  if (message.type === "captureClearBootstrapHistory") {
+    Promise.all([
+      clearBootstrapImportedEvents(),
+      resetBootstrapImportState({
+        status: "idle",
+        stage: "cleared",
+        note: "Browser activity import was cleared.",
+      }),
+    ])
+      .then(([result, bootstrap]) => {
+        invalidateEventSearchIndex();
+        sendResponse({
+          ok: true,
+          deletedCount: Number(result?.deletedCount || 0),
+          bootstrap,
+        });
+      })
+      .catch((error) =>
+        sendResponse({
+          ok: false,
+          deletedCount: 0,
+          error: String(error?.message || error || "clear browser import failed"),
+          bootstrap: null,
         })
       );
     return true;

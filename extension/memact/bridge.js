@@ -230,6 +230,15 @@ window.addEventListener("message", async (event) => {
         response,
         requestId
       });
+    } else if (type === "CAPTURE_CLEAR_BOOTSTRAP_HISTORY") {
+      const response = await chrome.runtime.sendMessage({
+        type: "captureClearBootstrapHistory"
+      });
+      forwardToPage({
+        type: "CAPTURE_CLEAR_BOOTSTRAP_HISTORY_RESULT",
+        response,
+        requestId
+      });
     } else if (type === "CAPTURE_EXPORT_SNAPSHOT") {
       const response = await chrome.runtime.sendMessage({
         type: "captureExportSnapshot",

@@ -269,6 +269,15 @@ export async function getBootstrapImportState() {
   return stored || buildDefaultState();
 }
 
+export async function resetBootstrapImportState(patch = {}) {
+  const next = {
+    ...buildDefaultState(),
+    ...patch,
+  };
+  await writeBootstrapState(next);
+  return next;
+}
+
 export async function beginBootstrapImport(options = {}) {
   if (importPromise) {
     return getBootstrapImportState();
