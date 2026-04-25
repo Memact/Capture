@@ -105,6 +105,7 @@ Capture snapshots contain:
 Capture stores activity locally inside the extension. It does not automatically download captured snapshots to the user's Downloads folder.
 
 Downstream systems should use the bridge API and `memorySignature` to request data only when the local memory changed.
+This is the automatic path for the product: Capture keeps recording useful activity, and clients sync through the bridge instead of watching downloaded files.
 
 Manual archive exports are still available from an authorized page:
 

@@ -53,13 +53,6 @@ const INTERACTION_CAPTURE_MIN_INTERVAL_MS = 12000;
 const AUTO_CAPTURE_HEARTBEAT_MS = 90000;
 const AUTO_CAPTURE_MUTATION_DELAY_MS = 2200;
 const AUTO_CAPTURE_REASON_MAX_AGE_MS = 15000;
-const AUTO_EXPORT_ENABLED = false;
-const AUTO_EXPORT_INTERVAL_MINUTES = 3;
-const AUTO_EXPORT_MIN_INTERVAL_MS = 45000;
-const AUTO_EXPORT_SNAPSHOT_LIMIT = 3000;
-const AUTO_EXPORT_DOWNLOAD_PATH = "memact_ai/capture-snapshot-latest.json";
-const AUTO_EXPORT_ALARM_NAME = "capture-auto-export";
-const CAPTURE_AUTO_EXPORT_STATE_KEY = "capture_auto_export_state";
 const CAPTURE_AUTHORIZED_ORIGINS_KEY = "capture_authorized_origins";
 const DEFAULT_SNAPSHOT_DOWNLOAD_PATH = "memact_ai/capture-snapshot.json";
 
@@ -185,7 +178,7 @@ function buildUniqueSnapshotDownloadPath(value) {
 async function downloadSnapshotToWorkspace(snapshot, options = {}) {
   const filename =
     options.unique === false
-      ? normalizeDownloadPath(options.filename, AUTO_EXPORT_DOWNLOAD_PATH)
+      ? normalizeDownloadPath(options.filename, DEFAULT_SNAPSHOT_DOWNLOAD_PATH)
       : buildUniqueSnapshotDownloadPath(options.filename);
   const payload = JSON.stringify(snapshot, null, 2);
   const encodedPayload = encodeURIComponent(payload);
@@ -200,165 +193,6 @@ async function downloadSnapshotToWorkspace(snapshot, options = {}) {
   return {
     downloadId,
     filename,
-  };
-}
-
-function extractLatestTimestamp(items, keys = []) {
-  let latest = "";
-  for (const item of Array.isArray(items) ? items : []) {
-    for (const key of keys) {
-      const value = normalizeText(item?.[key], 80);
-      if (value && (!latest || value > latest)) {
-        latest = value;
-      }
-    }
-  }
-  return latest;
-}
-
-function buildSnapshotSignature(snapshot) {
-  const events = Array.isArray(snapshot?.events) ? snapshot.events : [];
-  const sessions = Array.isArray(snapshot?.sessions) ? snapshot.sessions : [];
-  const activities = Array.isArray(snapshot?.activities) ? snapshot.activities : [];
-  if (!events.length && !sessions.length && !activities.length) {
-    return "";
-  }
-
-  const latestEvent = events.reduce((best, event) => {
-    const occurredAt = normalizeText(event?.occurred_at, 80);
-    if (!occurredAt) {
-      return best;
-    }
-    if (!best || occurredAt > normalizeText(best?.occurred_at, 80)) {
-      return event;
-    }
-    return best;
-  }, null);
-
-  const latestActivity = activities.reduce((best, activity) => {
-    const endedAt =
-      normalizeText(activity?.ended_at, 80) || normalizeText(activity?.started_at, 80);
-    if (!endedAt) {
-      return best;
-    }
-    const bestEndedAt =
-      normalizeText(best?.ended_at, 80) || normalizeText(best?.started_at, 80);
-    if (!best || endedAt > bestEndedAt) {
-      return activity;
-    }
-    return best;
-  }, null);
-
-  return JSON.stringify({
-    eventCount: Number(snapshot?.counts?.events || events.length || 0),
-    sessionCount: Number(snapshot?.counts?.sessions || sessions.length || 0),
-    activityCount: Number(snapshot?.counts?.activities || activities.length || 0),
-    latestEventAt: normalizeText(latestEvent?.occurred_at, 80),
-    latestEventUrl: normalizeText(latestEvent?.url, 200),
-    latestSessionAt: extractLatestTimestamp(sessions, ["ended_at", "started_at"]),
-    latestActivityAt: normalizeText(latestActivity?.ended_at || latestActivity?.started_at, 80),
-    latestActivityKey:
-      normalizeText(latestActivity?.key, 120) || normalizeText(latestActivity?.label, 120),
-  });
-}
-
-async function getAutoExportState() {
-  try {
-    const stored = await chrome.storage.local.get(CAPTURE_AUTO_EXPORT_STATE_KEY);
-    return stored?.[CAPTURE_AUTO_EXPORT_STATE_KEY] || {};
-  } catch {
-    return {};
-  }
-}
-
-async function setAutoExportState(state) {
-  try {
-    await chrome.storage.local.set({
-      [CAPTURE_AUTO_EXPORT_STATE_KEY]: state,
-    });
-  } catch {
-    // Keep auto export best-effort only.
-  }
-}
-
-function ensureAutoExportAlarm() {
-  try {
-    if (!AUTO_EXPORT_ENABLED) {
-      chrome.alarms.clear(AUTO_EXPORT_ALARM_NAME);
-      return;
-    }
-    chrome.alarms.create(AUTO_EXPORT_ALARM_NAME, {
-      periodInMinutes: AUTO_EXPORT_INTERVAL_MINUTES,
-    });
-  } catch {
-    // Ignore alarm registration failures.
-  }
-}
-
-async function maybeAutoExportLatestSnapshot(options = {}) {
-  if (!AUTO_EXPORT_ENABLED) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "auto_export_disabled",
-    };
-  }
-
-  const force = Boolean(options.force);
-  const reason = normalizeText(options.reason, 48) || "auto";
-  const now = Date.now();
-  const previousState = await getAutoExportState();
-  const lastExportedAt = Number(previousState.exported_at_ms || 0);
-
-  if (!force && lastExportedAt && now - lastExportedAt < AUTO_EXPORT_MIN_INTERVAL_MS) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "rate_limited",
-    };
-  }
-
-  const snapshot = await getCaptureSnapshot({ limit: AUTO_EXPORT_SNAPSHOT_LIMIT });
-  const eventCount = Number(snapshot?.counts?.events || 0);
-  if (!eventCount) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "empty_snapshot",
-    };
-  }
-
-  const signature = buildSnapshotSignature(snapshot);
-  if (!force && signature && signature === normalizeText(previousState.signature, 2000)) {
-    return {
-      ok: false,
-      skipped: true,
-      reason: "unchanged_snapshot",
-    };
-  }
-
-  const exportResult = await downloadSnapshotToWorkspace(snapshot, {
-    filename: AUTO_EXPORT_DOWNLOAD_PATH,
-    unique: false,
-    overwrite: true,
-  });
-
-  const nextState = {
-    exported_at: new Date(now).toISOString(),
-    exported_at_ms: now,
-    signature,
-    saved_to: exportResult.filename,
-    download_id: exportResult.downloadId,
-    last_reason: reason,
-    event_count: eventCount,
-  };
-
-  await setAutoExportState(nextState);
-
-  return {
-    ok: true,
-    skipped: false,
-    ...nextState,
   };
 }
 
@@ -1471,9 +1305,6 @@ async function processAndStore(tabData) {
   const appendResult = await appendEvent(event);
   if (!appendResult?.skipped) {
     invalidateEventSearchIndex();
-    maybeAutoExportLatestSnapshot({
-      reason: interactionType,
-    }).catch(() => {});
   }
   return appendResult;
 }
@@ -1572,7 +1403,6 @@ async function enableCaptureOnTab(tab) {
 }
 
 refreshAuthorizedBridgeOrigins().catch(() => {});
-ensureAutoExportAlarm();
 
 function lexicalOverlapScore(query, event) {
   const tokens = String(query || "")
@@ -2023,23 +1853,13 @@ function emitBrainEvent(tabId, payload) {
 chrome.runtime.onInstalled.addListener(() => {
   refreshAuthorizedBridgeOrigins().catch(() => {});
   initDB().catch(() => {});
-  ensureAutoExportAlarm();
   queueSnapshot();
-  maybeAutoExportLatestSnapshot({
-    reason: "install",
-    force: true,
-  }).catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
   refreshAuthorizedBridgeOrigins().catch(() => {});
   initDB().catch(() => {});
-  ensureAutoExportAlarm();
   queueSnapshot();
-  maybeAutoExportLatestSnapshot({
-    reason: "startup",
-    force: true,
-  }).catch(() => {});
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -2088,15 +1908,6 @@ chrome.webNavigation.onCompleted.addListener(
   },
   { url: [{ schemes: ["http", "https"] }] }
 );
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm?.name !== AUTO_EXPORT_ALARM_NAME) {
-    return;
-  }
-  maybeAutoExportLatestSnapshot({
-    reason: "alarm",
-  }).catch(() => {});
-});
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message?.type) {
     return false;
@@ -2285,10 +2096,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       getEventCount(),
       getSessionCount(),
       getLatestEventTimestamp(),
-      getAutoExportState(),
       getBootstrapImportState(),
     ])
-      .then(([eventCount, sessionCount, lastEventAt, autoExportState, bootstrapState]) =>
+      .then(([eventCount, sessionCount, lastEventAt, bootstrapState]) =>
         sendResponse({
           ready: true,
           eventCount,
@@ -2305,14 +2115,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             normalizeText(bootstrapState?.imported_at, 80),
             Number(bootstrapState?.imported_count || 0),
           ].join("|"),
-          autoExport: {
-            enabled: AUTO_EXPORT_ENABLED,
-            savedTo:
-              normalizeText(autoExportState?.saved_to, 240) ||
-              (AUTO_EXPORT_ENABLED ? AUTO_EXPORT_DOWNLOAD_PATH : ""),
-            lastExportedAt:
-              normalizeText(autoExportState?.exported_at, 80) || "",
-            lastReason: normalizeText(autoExportState?.last_reason, 48) || "",
+          sync: {
+            mode: "bridge_signature",
+            automaticCapture: true,
+            automaticDownloads: false,
           },
           bootstrap: bootstrapState,
         })
@@ -2326,11 +2132,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           memorySignature: "error",
           modelReady: Boolean(embedWorkerReady),
           error: String(error?.message || error || "status failed"),
-          autoExport: {
-            enabled: AUTO_EXPORT_ENABLED,
-            savedTo: AUTO_EXPORT_ENABLED ? AUTO_EXPORT_DOWNLOAD_PATH : "",
-            lastExportedAt: "",
-            lastReason: "",
+          sync: {
+            mode: "bridge_signature",
+            automaticCapture: true,
+            automaticDownloads: false,
           },
           bootstrap: {
             status: "error",
