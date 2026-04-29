@@ -15,10 +15,10 @@ Capture is the evidence layer for Memact's citation and answer engine. Its job i
 ## Pipeline Position
 
 ```text
-Capture -> Inference -> Schema -> Interface / Query -> Influence / Origin
+Capture -> Inference -> Schema -> Memory -> Interface / Query -> Influence / Origin
 ```
 
-Capture does not interpret thoughts. It records evidence.
+Capture does not interpret thoughts. It records evidence. Memory later decides what should survive and builds RAG context for answers.
 
 ## First-Use Bootstrap
 
