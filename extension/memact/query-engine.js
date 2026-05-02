@@ -1012,22 +1012,22 @@ function isDocsSession(session) {
   );
 }
 
-function causalBonus(source, target) {
+function transitionPrior(source, target) {
   const sourceApps = [...source.applications].map((value) => value.toLowerCase());
   const sourceDomains = [...source.domains];
   const targetApps = [...target.applications].map((value) => value.toLowerCase());
 
   if (sourceDomains.some((domain) => AI_DOMAINS.has(domain)) && targetApps.some((app) => EDITOR_APPS.has(app))) {
-    return { value: 0.3, type: "causal" };
+    return { value: 0.3, type: "possible_transition" };
   }
   if (sourceDomains.includes("github.com") && targetApps.some((app) => EDITOR_APPS.has(app) || TERMINAL_APPS.has(app))) {
-    return { value: 0.28, type: "causal" };
+    return { value: 0.28, type: "possible_transition" };
   }
   if (sourceApps.some((app) => BROWSER_APPS.has(app)) && targetApps.some((app) => EDITOR_APPS.has(app) || TERMINAL_APPS.has(app))) {
-    return { value: 0.22, type: "causal" };
+    return { value: 0.22, type: "possible_transition" };
   }
   if (isDocsSession(source) && targetApps.some((app) => EDITOR_APPS.has(app))) {
-    return { value: 0.24, type: "causal" };
+    return { value: 0.24, type: "possible_transition" };
   }
   return { value: 0, type: "semantic" };
 }
@@ -1059,10 +1059,10 @@ function buildSessionGraph(sessions, cosineSimilarity) {
         : 0;
       const phraseOverlap = overlapCount(source.keyphrases, target.keyphrases);
       const temporalBonus = gap <= 10 * 60 * 1000 && phraseOverlap > 0 ? 0.1 : 0;
-      const causal = causalBonus(source, target);
-      const strength = Math.min(1, Math.max(0, semantic) + causal.value + temporalBonus + phraseOverlap * 0.04);
+      const prior = transitionPrior(source, target);
+      const strength = Math.min(1, Math.max(0, semantic) + prior.value + temporalBonus + phraseOverlap * 0.04);
 
-      if (!(semantic >= CHAIN_THRESHOLD || causal.value > 0 || temporalBonus > 0)) {
+      if (!(semantic >= CHAIN_THRESHOLD || prior.value > 0 || temporalBonus > 0)) {
         continue;
       }
 
@@ -1071,14 +1071,14 @@ function buildSessionGraph(sessions, cosineSimilarity) {
         label: target.label,
         started_at: target.started_at,
         strength,
-        link_type: causal.type,
+        link_type: prior.type,
       });
       target.upstream.push({
         session_id: source.id,
         label: source.label,
         started_at: source.started_at,
         strength,
-        link_type: causal.type,
+        link_type: prior.type,
       });
     }
   }

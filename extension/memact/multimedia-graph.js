@@ -60,7 +60,7 @@ const STOPWORDS = new Set([
 const RELATION_PATTERNS = [
   { type: "shapes", pattern: /\b(.{3,80}?)\s+(shapes?|shaped|shape)\s+(.{3,80})\b/i, confidence: 0.92 },
   { type: "affects", pattern: /\b(.{3,80}?)\s+(affects?|affected|influences?|influenced)\s+(.{3,80})\b/i, confidence: 0.9 },
-  { type: "causes", pattern: /\b(.{3,80}?)\s+(causes?|caused|creates?|created)\s+(.{3,80})\b/i, confidence: 0.9 },
+  { type: "claims_causes", pattern: /\b(.{3,80}?)\s+(causes?|caused|creates?|created)\s+(.{3,80})\b/i, confidence: 0.78 },
   { type: "leads_to", pattern: /\b(.{3,80}?)\s+(leads?\s+to|led\s+to|moves?\s+toward|pushes?\s+toward)\s+(.{3,80})\b/i, confidence: 0.88 },
   { type: "depends_on", pattern: /\b(.{3,80}?)\s+(depends?\s+on|relies?\s+on)\s+(.{3,80})\b/i, confidence: 0.86 },
   { type: "part_of", pattern: /\b(.{3,80}?)\s+(is\s+part\s+of|are\s+part\s+of|belongs?\s+to)\s+(.{3,80})\b/i, confidence: 0.84 },
