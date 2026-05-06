@@ -28,7 +28,7 @@ Located in `extension/memact/capture-api.js`.
   Returns ordered content units captured from webpages, transcripts/captions, PDFs, and image context.
 
 - `getGraphPackets({ limit })`
-  Returns multimedia and device graph packets with content units, nodes, edges, and pending local media jobs.
+  Returns multimedia and device graph packets with content units, nodes, edges, evidence links, schema packet candidates, and pending local media jobs.
 
 - `getMediaJobs({ limit })`
   Returns pending local OCR/ASR jobs. These are job descriptors only, not raw media.
@@ -117,6 +117,36 @@ evidence snippets require `memory:read_evidence`.
       "extraction": "pattern"
     }
   ],
+  "evidence_links": [
+    {
+      "evidence_id": "ev_mgc_12_attention_video_transcript_1",
+      "packet_id": "mgc_12_attention_video",
+      "unit_id": "transcript_1",
+      "source_url": "https://example.com/video",
+      "timestamp": "2026-04-03T12:00:00.000Z",
+      "snippet": "Repeated exposure shapes attention.",
+      "claim_supported": "captured_content",
+      "score": 0.82
+    }
+  ],
+  "schema_packets": [
+    {
+      "schema_id": "schema_mgc_12_attention_video_learning_research",
+      "status": "captured_candidate",
+      "category": "learning_research",
+      "label": "Learning and research",
+      "node_ids": ["repeated_exposure", "attention"],
+      "edge_ids": ["edge_repeated_exposure_shapes_attention_1"],
+      "evidence_ids": ["ev_mgc_12_attention_video_transcript_1"],
+      "confidence": 0.58
+    }
+  ],
+  "knowledge_graph": {
+    "node_count": 2,
+    "edge_count": 1,
+    "nodes": [],
+    "edges": []
+  },
   "processing_jobs": []
 }
 ```
@@ -125,6 +155,10 @@ Graph packets are deterministic local evidence envelopes. They do not claim
 final origin, influence, pattern, or meaning by themselves. Inference, Schema,
 Memory, and app-specific engines decide what survives and how it should be used
 later.
+
+`schema_packets` are captured candidates only. They group local nodes, edges,
+and evidence IDs into a memory-ready envelope so Schema can later decide what
+should become durable cognitive-schema memory.
 
 Raw audio/video blobs are not part of this contract. When transcript text is missing, Capture exposes a pending local media job so a future local helper can transcribe without forcing Capture clients to handle media files.
 
@@ -319,6 +353,26 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 
 Capture does not download snapshots. Live products should use `MEMACT_STATUS`, `memorySignature`, and `CAPTURE_GET_SNAPSHOT` through the bridge so captured data stays local and only moves when a Memact client requests it.
 `MEMACT_STATUS.sync` reports `mode: "memory_pulse_bridge"` and `automaticDownloads: false` so clients can tell that automatic capture is running without a file-export loop.
+
+## App Embed SDK
+
+App developers can use the small browser client in `sdk/memact-capture-client.mjs`.
+It verifies an API key with Access before reading the local Capture bridge:
+
+```js
+import { createMemactCaptureClient } from "./memact-capture-client.mjs";
+
+const memact = createMemactCaptureClient({
+  accessUrl: "https://memact-access.onrender.com",
+  apiKey: "mka_key_shown_once"
+});
+
+const { snapshot } = await memact.getLocalSnapshot({
+  scopes: ["capture:webpage", "schema:write", "graph:write", "memory:write", "memory:read_summary"]
+});
+```
+
+More examples are in [`docs/embed-apps.md`](embed-apps.md).
 
 This runtime is available by default on:
 

@@ -10,9 +10,9 @@ It owns one job:
 observe useful digital activity and store it as local evidence
 ```
 
-Capture does not form schemas, judge meaning, or generate answers. It records
-what the user encountered so other Memact layers and approved apps can work
-from evidence.
+Capture does not generate answers. It records what the user encountered and
+wraps retained content in local evidence, nodes, edges, and schema packet
+candidates so other Memact layers and approved apps can work from a real graph.
 
 ## What This Repo Owns
 
@@ -21,8 +21,9 @@ from evidence.
 - Automatic page, tab, navigation, and interaction capture.
 - Content extraction from webpages, PDFs, visible captions/transcripts, selections, and image context.
 - Noise filtering for empty pages, auth screens, browser chrome, and low-value activity.
-- Local IndexedDB storage for events, sessions, content units, graph packets, and media jobs.
+- Local IndexedDB storage for events, sessions, content units, graph packets, schema packet candidates, and media jobs.
 - Public bridge APIs for Website and downstream engines.
+- A small app embed SDK for scoped browser integrations.
 - Extension packaging.
 
 ## Local Evidence Model
@@ -42,7 +43,12 @@ Capture stores several levels of evidence:
   Captured text fragments such as article paragraphs, captions, transcript segments, PDF text, image captions, and selected text.
 
 - `graph_packets`
-  Local packets containing content units, extracted nodes, extracted edges, and evidence text.
+  Local packets containing content units, extracted nodes, extracted edges, evidence links, schema packet candidates, and knowledge-graph metadata.
+
+- `schema_packets`
+  Candidate schema envelopes inside graph packets. They group node IDs, edge IDs,
+  and evidence IDs, but they are not final durable schemas until the Schema layer
+  confirms them.
 
 - `media_jobs`
   Local OCR/ASR job descriptors. These are not raw media files.
@@ -91,6 +97,32 @@ Access creates API keys and consent scopes. Capture can return scoped snapshots:
 - `memory:read_graph` is required before nodes and edges are exposed
 
 Without graph-read scope, graph packets return counts and metadata only.
+
+## App Embed
+
+Apps can plug into Memact through Access and the local Capture bridge. The helper
+client lives in:
+
+```text
+sdk/memact-capture-client.mjs
+```
+
+Minimal integration:
+
+```js
+import { createMemactCaptureClient } from "./memact-capture-client.mjs";
+
+const memact = createMemactCaptureClient({
+  accessUrl: "https://memact-access.onrender.com",
+  apiKey: "mka_key_shown_once"
+});
+
+const { snapshot } = await memact.getLocalSnapshot({
+  scopes: ["capture:webpage", "schema:write", "graph:write", "memory:write", "memory:read_summary"]
+});
+```
+
+See [`docs/embed-apps.md`](docs/embed-apps.md) for the full app flow.
 
 ## Public API
 
@@ -170,6 +202,16 @@ const snapshot = await window.capture.getSnapshot({ limit: 50 });
 console.log(snapshot.events.length);
 console.log(snapshot.graph_packets[0]);
 ```
+
+Each graph packet now includes:
+
+- `evidence_links`
+- `knowledge_graph.nodes`
+- `knowledge_graph.edges`
+- `schema_packets`
+
+That is the Capture-side contract for turning allowed activity into schema graph
+memory without exposing raw graph data by default.
 
 If the local helper is running, `window.capture.getSnapshot()` will also include `device_graph_capture` packets after the extension imports them.
 
