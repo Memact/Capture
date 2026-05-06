@@ -3,7 +3,7 @@
   "name": "Memact",
   "version": "0.0.0",
   "version_name": "v0.0",
-  "description": "Capture consumed web activity for Memact citation and answer engines.",
+  "description": "Capture allowed activity as local evidence, nodes, edges, and schema graph packets.",
   "icons": {
     "16": "icons/memact_16.png",
     "32": "icons/memact_32.png",

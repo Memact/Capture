@@ -30,6 +30,7 @@ import { extractPdfTextFromUrl, looksLikePdfResource } from "./pdf-support.js";
 import { getIndexedSearchCandidates, invalidateEventSearchIndex } from "./search-index.js";
 import { buildCapturePacket } from "./capture-packet.js";
 import { buildMultimediaGraphPacket } from "./multimedia-graph.js";
+import { classifyCapturePrivacy, redactPrivateCapture } from "./privacy-boundary.js";
 import {
   getActivities as getCaptureActivities,
   getCaptureSnapshot,
@@ -456,6 +457,30 @@ function normalizeRichText(value, maxLen) {
   const normalized = blocks.join("\n\n").trim();
   if (!normalized) return "";
   return maxLen && normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized;
+}
+
+function redactActiveContextForStorage(active = {}) {
+  return {
+    ...active,
+    snippet: redactPrivateCapture(active.snippet),
+    fullText: redactPrivateCapture(active.fullText),
+    selection: redactPrivateCapture(active.selection),
+    contentUnits: Array.isArray(active.contentUnits)
+      ? active.contentUnits.map((unit) => ({
+          ...unit,
+          text: redactPrivateCapture(unit?.text),
+          caption: redactPrivateCapture(unit?.caption),
+          alt: redactPrivateCapture(unit?.alt),
+          image: unit?.image
+            ? {
+                ...unit.image,
+                alt: redactPrivateCapture(unit.image.alt),
+                caption: redactPrivateCapture(unit.image.caption),
+              }
+            : unit?.image,
+        }))
+      : [],
+  };
 }
 
 function hostnameFromUrl(url) {
@@ -1627,13 +1652,18 @@ async function processAndStore(tabData) {
     fullText: initialFullText,
     keyphrases: baseKeyphrases,
   });
+  const privacyBoundary = classifyCapturePrivacy(initialProfile);
+  if (privacyBoundary.action === "block") {
+    return null;
+  }
+  const safeActive = redactActiveContextForStorage(active);
   const captureIntent = inferCaptureIntent(initialProfile);
   const initialClutterAudit = auditCapturedContent(initialProfile, captureIntent);
   if (!captureIntent.shouldCapture || initialClutterAudit.shouldSkip) {
     return null;
   }
   const storedContent = chooseStoredCaptureContent(
-    active,
+    safeActive,
     initialProfile,
     captureIntent,
     initialClutterAudit
@@ -1648,9 +1678,9 @@ async function processAndStore(tabData) {
     url: tabData.activeTab?.url || "",
     application: tabData.browser,
     pageTitle,
-    description: active.description,
-    h1: active.h1,
-    selection: active.selection,
+    description: safeActive.description,
+    h1: safeActive.h1,
+    selection: safeActive.selection,
     snippet: storedContent.snippet,
     fullText: storedContent.fullText,
     keyphrases,
@@ -1662,9 +1692,9 @@ async function processAndStore(tabData) {
       url: tabData.activeTab?.url || "",
       application: tabData.browser,
       pageTitle,
-      description: active.description,
-      h1: active.h1,
-      selection: active.selection,
+      description: safeActive.description,
+      h1: safeActive.h1,
+      selection: safeActive.selection,
       snippet: normalizeText(
         contextProfile.structuredSummary || contextProfile.displayExcerpt || storedContent.snippet,
         SNIPPET_MAX_LEN
@@ -1685,6 +1715,7 @@ async function processAndStore(tabData) {
   contextProfile.captureIntent = captureIntent;
   contextProfile.clutterAudit = clutterAudit;
   contextProfile.localJudge = localJudge;
+  contextProfile.privacyBoundary = privacyBoundary;
   const interactionType = resolveInteractionType(active);
   contextProfile.selectiveMemory = evaluateSelectiveMemory(contextProfile, {
     interactionType,
@@ -1709,7 +1740,7 @@ async function processAndStore(tabData) {
   };
   const capturePacket = buildCapturePacket({
     tabData,
-    activeContext: active,
+    activeContext: safeActive,
     profile: retainedProfile,
     interactionType,
   });
@@ -1742,6 +1773,7 @@ async function processAndStore(tabData) {
     clutterAudit: contextProfile.clutterAudit,
     localJudge: contextProfile.localJudge,
     selectiveMemory: contextProfile.selectiveMemory,
+    privacyBoundary: contextProfile.privacyBoundary,
     capturePacket,
   };
 
@@ -1774,7 +1806,7 @@ async function processAndStore(tabData) {
   if (!appendResult?.skipped) {
     const graphPacket = buildMultimediaGraphPacket({
       tabData,
-      activeContext: active,
+      activeContext: safeActive,
       profile: retainedProfile,
       capturePacket,
       eventId: appendResult.id,

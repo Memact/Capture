@@ -405,6 +405,10 @@ export async function appendGraphPacket(packet) {
   const contentUnits = cloneJson(packet.content_units, []);
   const nodes = cloneJson(packet.nodes, []);
   const edges = cloneJson(packet.edges, []);
+  const evidenceLinks = cloneJson(packet.evidence_links || packet.schema_memory?.evidence_links, []);
+  const knowledgeGraph = cloneJson(packet.knowledge_graph || packet.schema_memory?.knowledge_graph, null);
+  const schemaPackets = cloneJson(packet.schema_packets || packet.schema_memory?.schema_packets, []);
+  const schemaMemory = cloneJson(packet.schema_memory, null);
   const processingJobs = cloneJson(packet.processing_jobs, []);
 
   await openRequest(graphStore.put({
@@ -425,6 +429,10 @@ export async function appendGraphPacket(packet) {
     content_units_json: normalizeJson(contentUnits),
     nodes_json: normalizeJson(nodes),
     edges_json: normalizeJson(edges),
+    evidence_links_json: normalizeJson(evidenceLinks),
+    knowledge_graph_json: normalizeJson(knowledgeGraph, "null"),
+    schema_packets_json: normalizeJson(schemaPackets),
+    schema_memory_json: normalizeJson(schemaMemory, "null"),
     processing_jobs_json: normalizeJson(processingJobs),
     packet_json: normalizeJson(packet, "{}"),
   }));
@@ -563,6 +571,23 @@ export async function getRecentGraphPackets(limit = 400) {
         return;
       }
       const record = cursor.value;
+      const packetJson = parseStoredJson(record.packet_json, {});
+      const evidenceLinks = parseStoredJson(
+        record.evidence_links_json,
+        packetJson.evidence_links || packetJson.schema_memory?.evidence_links || []
+      );
+      const knowledgeGraph = parseStoredJson(
+        record.knowledge_graph_json,
+        packetJson.knowledge_graph || packetJson.schema_memory?.knowledge_graph || null
+      );
+      const schemaPackets = parseStoredJson(
+        record.schema_packets_json,
+        packetJson.schema_packets || packetJson.schema_memory?.schema_packets || []
+      );
+      const schemaMemory = parseStoredJson(
+        record.schema_memory_json,
+        packetJson.schema_memory || null
+      );
       results.push({
         packet_id: record.packet_id,
         packet_type: record.packet_type,
@@ -577,11 +602,17 @@ export async function getRecentGraphPackets(limit = 400) {
         content_units: parseStoredJson(record.content_units_json, []),
         nodes: parseStoredJson(record.nodes_json, []),
         edges: parseStoredJson(record.edges_json, []),
+        evidence_links: evidenceLinks,
+        knowledge_graph: knowledgeGraph,
+        schema_packets: schemaPackets,
+        schema_memory: schemaMemory,
         processing_jobs: parseStoredJson(record.processing_jobs_json, []),
         stats: {
           content_unit_count: Number(record.content_unit_count || 0),
           node_count: Number(record.node_count || 0),
           edge_count: Number(record.edge_count || 0),
+          evidence_link_count: evidenceLinks.length,
+          schema_packet_count: schemaPackets.length,
           pending_job_count: Number(record.pending_job_count || 0),
         },
       });

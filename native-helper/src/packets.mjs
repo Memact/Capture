@@ -3,7 +3,7 @@ import { extractKeyphrases, normalizeText, slug, splitSentences, uniqueLines } f
 
 const RELATION_PATTERNS = [
   { type: "shapes", pattern: /\b(.{3,70}?)\s+(shapes?|shaped|influences?|influenced)\s+(.{3,70})\b/i },
-  { type: "causes", pattern: /\b(.{3,70}?)\s+(causes?|caused|creates?|created)\s+(.{3,70})\b/i },
+  { type: "claims_causes", pattern: /\b(.{3,70}?)\s+(causes?|caused|creates?|created)\s+(.{3,70})\b/i },
   { type: "leads_to", pattern: /\b(.{3,70}?)\s+(leads?\s+to|led\s+to|pushes?\s+toward)\s+(.{3,70})\b/i },
   { type: "changes", pattern: /\b(.{3,70}?)\s+(changes?|changed|updates?|updated)\s+(.{3,70})\b/i },
   { type: "supports", pattern: /\b(.{3,70}?)\s+(supports?|supported|backs?|backed)\s+(.{3,70})\b/i },
@@ -19,6 +19,13 @@ const UI_NOISE_LABELS = new Set([
   "restore",
   "system",
 ]);
+
+const SENSITIVE_ACTIVITY_PATTERNS = [
+  /\b(bank|netbanking|paypal|stripe|razorpay|payment|checkout|billing)\b/i,
+  /\b(password|login|signin|otp|one[-\s]?time password|security code)\b/i,
+  /\b(inbox|direct message|private message|compose mail|whatsapp|telegram)\b/i,
+  /\b(medical|patient portal|lab result|prescription|hospital)\b/i,
+];
 
 function hash(value, length = 12) {
   return crypto.createHash("sha256").update(String(value || "")).digest("hex").slice(0, length);
@@ -231,6 +238,9 @@ export function shouldKeepCapture(capture) {
   const title = normalizeText(capture.window_title, 200);
   const app = normalizeText(capture.application || capture.process_name, 80).toLowerCase();
   const text = uniqueLines([title, ...(capture.ui_text || []), capture.ocr_text], 20).join(" ");
+  if (SENSITIVE_ACTIVITY_PATTERNS.some((pattern) => pattern.test(`${app} ${title} ${text}`))) {
+    return false;
+  }
   if (!title && text.length < 12) {
     return false;
   }

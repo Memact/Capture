@@ -23,7 +23,8 @@
   "scripts": {
     "postinstall": "node scripts/sync-vendors.mjs",
     "sync-vendors": "node scripts/sync-vendors.mjs",
-    "check": "node scripts/check.mjs",
+    "check": "node scripts/check.mjs && node --test",
+    "test": "node --test",
     "build": "node scripts/package-extension.mjs",
     "device-helper": "node native-helper/src/helper.mjs",
     "device-helper:once": "node native-helper/src/helper.mjs --once --json",

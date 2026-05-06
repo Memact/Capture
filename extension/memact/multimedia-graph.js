@@ -3,6 +3,8 @@ const MAX_UNIT_TEXT = 1200;
 const MAX_NODES = 80;
 const MAX_EDGES = 120;
 
+import { buildSchemaGraphEnvelope } from "./schema-graph.js";
+
 const STOPWORDS = new Set([
   "a",
   "about",
@@ -493,6 +495,17 @@ export function buildMultimediaGraphPacket({
     .filter((edge) => allowedNodeIds.has(edge.from) && allowedNodeIds.has(edge.to))
     .slice(0, MAX_EDGES);
   const packetId = `mgc_${eventId || Date.now()}_${slug(title || hostnameFromUrl(url) || "capture", "capture")}`;
+  const schemaMemory = buildSchemaGraphEnvelope({
+    packetId,
+    url,
+    domain: hostnameFromUrl(url),
+    title,
+    mediaType,
+    capturedAt,
+    contentUnits,
+    nodes: finalNodes,
+    edges: finalEdges,
+  });
   const processingJobs = buildProcessingJobs({
     packetId,
     eventId,
@@ -517,11 +530,17 @@ export function buildMultimediaGraphPacket({
     content_units: contentUnits,
     nodes: finalNodes,
     edges: finalEdges,
+    evidence_links: schemaMemory.evidence_links,
+    knowledge_graph: schemaMemory.knowledge_graph,
+    schema_packets: schemaMemory.schema_packets,
+    schema_memory: schemaMemory,
     processing_jobs: processingJobs,
     stats: {
       content_unit_count: contentUnits.length,
       node_count: finalNodes.length,
       edge_count: finalEdges.length,
+      evidence_link_count: schemaMemory.evidence_links.length,
+      schema_packet_count: schemaMemory.schema_packets.length,
       explicit_edge_count: explicitEdges.length,
       pending_job_count: processingJobs.length,
     },
