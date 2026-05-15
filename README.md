@@ -98,6 +98,12 @@ Access creates API keys and consent scopes. Capture can return scoped snapshots:
 
 Without graph-read scope, graph packets return counts and metadata only.
 
+Activity categories also matter. The Capture SDK sends the app's approved
+categories to Access during verification and passes them to the local bridge.
+The bridge filters snapshot records by category before scope redaction, so a
+news article wrapper asks for article evidence and does not receive unrelated
+developer, shopping, media, or assistant activity.
+
 ## App Embed
 
 Apps can plug into Memact through Access and the local Capture bridge. The helper
@@ -118,7 +124,8 @@ const memact = createMemactCaptureClient({
 });
 
 const { snapshot } = await memact.getLocalSnapshot({
-  scopes: ["capture:webpage", "schema:write", "graph:write", "memory:write", "memory:read_summary"]
+  scopes: ["capture:webpage", "schema:write", "graph:write", "memory:write", "memory:read_summary"],
+  categories: ["web:news"]
 });
 ```
 

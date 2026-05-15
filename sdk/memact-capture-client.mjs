@@ -8,6 +8,10 @@ function normalizeScopes(scopes = []) {
   return [...new Set((Array.isArray(scopes) ? scopes : []).map(String).filter(Boolean))];
 }
 
+function normalizeCategories(categories = []) {
+  return [...new Set((Array.isArray(categories) ? categories : []).map(String).filter(Boolean))];
+}
+
 async function readJson(response) {
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
@@ -43,7 +47,7 @@ export function createMemactCaptureClient({
 
   const baseUrl = normalizeUrl(accessUrl);
 
-  async function verify(requiredScopes = []) {
+  async function verify(requiredScopes = [], activityCategories = []) {
     return readJson(
       await fetchImpl(`${baseUrl}/v1/access/verify`, {
         method: "POST",
@@ -53,6 +57,7 @@ export function createMemactCaptureClient({
         },
         body: JSON.stringify({
           required_scopes: normalizeScopes(requiredScopes),
+          activity_categories: normalizeCategories(activityCategories),
         }),
       })
     );
@@ -61,14 +66,18 @@ export function createMemactCaptureClient({
   async function getLocalSnapshot({
     limit = 1000,
     scopes = ["memory:read_summary"],
+    categories = [],
     verifyAccess = true,
   } = {}) {
     const cleanScopes = normalizeScopes(scopes);
-    const access = verifyAccess ? await verify(cleanScopes) : null;
+    const cleanCategories = normalizeCategories(categories);
+    const access = verifyAccess ? await verify(cleanScopes, cleanCategories) : null;
     const runtime = resolveCaptureRuntime(captureRuntime);
     const snapshot = await runtime.getSnapshot({
       limit,
       scopes: cleanScopes,
+      categories: cleanCategories,
+      understandingStrategy: access?.understanding_strategy || null,
     });
     return {
       access,
@@ -79,14 +88,18 @@ export function createMemactCaptureClient({
   async function getGraphPackets({
     limit = 200,
     scopes = ["memory:read_graph"],
+    categories = [],
     verifyAccess = true,
   } = {}) {
     const cleanScopes = normalizeScopes(scopes);
-    const access = verifyAccess ? await verify(cleanScopes) : null;
+    const cleanCategories = normalizeCategories(categories);
+    const access = verifyAccess ? await verify(cleanScopes, cleanCategories) : null;
     const runtime = resolveCaptureRuntime(captureRuntime);
     const graphPackets = await runtime.getGraphPackets({
       limit,
       scopes: cleanScopes,
+      categories: cleanCategories,
+      understandingStrategy: access?.understanding_strategy || null,
     });
     return {
       access,
@@ -105,9 +118,11 @@ export function createBrowserEmbedSnippet({
   accessUrl = DEFAULT_ACCESS_URL,
   apiKey = "mka_replace_with_key_shown_once",
   scopes = ["capture:webpage", "schema:write", "graph:write", "memory:write", "memory:read_summary"],
+  categories = ["web:news"],
   limit = 1000,
 } = {}) {
   const cleanScopes = normalizeScopes(scopes);
+  const cleanCategories = normalizeCategories(categories);
   return `import { createMemactCaptureClient } from "./memact-capture-client.mjs";
 
 const memact = createMemactCaptureClient({
@@ -117,7 +132,8 @@ const memact = createMemactCaptureClient({
 
 const { snapshot } = await memact.getLocalSnapshot({
   limit: ${Number(limit) || 1000},
-  scopes: ${JSON.stringify(cleanScopes)}
+  scopes: ${JSON.stringify(cleanScopes)},
+  categories: ${JSON.stringify(cleanCategories)}
 });
 
 console.log(snapshot.counts);`;
