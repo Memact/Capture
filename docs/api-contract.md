@@ -1,15 +1,15 @@
-# Memact Capture API Contract
+# Capture-Layer API Contract
 
-Downstream Memact engines must consume Capture only through the public data contract.
+Downstream Memact engines must consume the capture layer only through the public data contract.
 
-Capture is the source-of-truth evidence boundary for Memact's memory
+The capture layer is the source-of-truth evidence boundary for Memact's memory
 infrastructure. It should expose enough structured activity data for downstream
 systems to build schema memory, pattern reports, dictionaries, timelines, and
-query apps without forcing those systems to read Capture internals.
+query apps without forcing those systems to read capture internals.
 
-Capture is not an app data broker. Apps can use Memact to capture allowed
-activity and form schemas, but Access must decide what an app is allowed to
-ask for and what output it may read.
+Memact is not an app data broker. Apps use Memact to understand approved
+activity and receive scoped context, while the access layer decides what an app
+is allowed to ask for and what output it may read.
 
 ## Public Functions
 
@@ -351,7 +351,7 @@ That runtime is provided by `extension/memact/page-api.js`, which is injected in
 `exportSnapshot()` is now an alias for `getSnapshot()` for developer compatibility. It does not write files.
 `downloadSnapshot()` is intentionally disabled.
 
-Capture does not download snapshots. Live products should use `MEMACT_STATUS`, `memorySignature`, and `CAPTURE_GET_SNAPSHOT` through the bridge so captured data stays local and only moves when a Memact client requests it.
+The capture layer does not download snapshots. Live products should use `MEMACT_STATUS`, `memorySignature`, and `CAPTURE_GET_SNAPSHOT` through the bridge so local evidence stays local and only moves when a Memact client requests it.
 `MEMACT_STATUS.sync` reports `mode: "memory_pulse_bridge"` and `automaticDownloads: false` so clients can tell that automatic capture is running without a file-export loop.
 
 ## App Embed SDK

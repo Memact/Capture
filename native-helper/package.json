@@ -2,7 +2,7 @@
   "name": "memact-capture-helper",
   "private": true,
   "version": "0.0.0",
-  "description": "Local device evidence helper for Memact Capture.",
+  "description": "Local device evidence helper for Memact.",
   "license": "SEE LICENSE IN ../../LICENSE",
   "type": "module",
   "bin": {

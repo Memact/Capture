@@ -2,7 +2,7 @@
   "name": "memact-capture",
   "private": true,
   "version": "0.0.0",
-  "description": "Memact Capture engine and browser extension.",
+  "description": "Memact local evidence engine and browser extension.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "keywords": [

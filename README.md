@@ -1,8 +1,8 @@
-# Memact Capture
+# Capture Layer
 
 Version: `v0.0`
 
-Capture is the evidence layer.
+Capture is Memact's local evidence layer.
 
 It owns one job:
 
@@ -10,7 +10,7 @@ It owns one job:
 observe useful digital activity and store it as local evidence
 ```
 
-Capture does not generate answers. It records what the user encountered and
+The capture layer does not generate answers. It records what the user encountered and
 wraps retained content in local evidence, nodes, edges, and schema packet
 candidates so other Memact layers and approved apps can work from a real graph.
 

@@ -1,19 +1,19 @@
-# Embedding Memact Capture In Apps
+# Embedding Memact Activity Context In Apps
 
-Apps should use Memact to capture allowed activity and form schema graph
-packets. They should not receive the user's raw memory graph unless the user
+Apps should use Memact to understand approved activity and receive scoped
+context. They should not receive the user's raw memory graph unless the user
 grants graph-read scope.
 
 ## Browser App Flow
 
 ```text
-user installs Capture
+user installs the Memact browser extension
 -> user signs in to Memact
 -> app is registered in Access
 -> user grants scopes for that app
 -> app receives an API key
--> app verifies scope with Access
--> app reads only the allowed local Capture snapshot
+-> app verifies scope with Memact
+-> app reads only the allowed local snapshot
 ```
 
 ## Minimal Browser Integration

@@ -29,7 +29,7 @@ function resolveCaptureRuntime(runtime) {
   if (typeof globalThis !== "undefined" && globalThis.capture) {
     return globalThis.capture;
   }
-  throw new Error("Memact Capture is not available on this page. Install Capture and authorize this origin.");
+  throw new Error("Memact capture bridge is not available on this page. Install the Memact extension and authorize this origin.");
 }
 
 export function createMemactCaptureClient({

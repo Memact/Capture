@@ -1,10 +1,10 @@
-# Memact Capture Helper
+# Memact Local Helper
 
 Version: `v0.0`
 
-The Capture Helper is the local device evidence layer for Memact.
+The local helper is the optional device evidence layer for Memact.
 
-It observes useful device context that a browser extension cannot reliably see, then exposes small evidence packets to the Capture extension.
+It observes useful device context that a browser extension cannot reliably see, then exposes small evidence packets to the Memact extension.
 
 It does not keep raw screenshots or audio.
 

@@ -212,7 +212,7 @@ async function main() {
     if (options.json) {
       process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
     } else {
-      process.stdout.write(`Memact Capture Helper observed ${record ? "one packet" : "no meaningful change"}.\n`);
+      process.stdout.write(`Memact local helper observed ${record ? "one packet" : "no meaningful change"}.\n`);
     }
     return;
   }
@@ -220,7 +220,7 @@ async function main() {
   helper.start();
   const server = createServer(helper);
   server.listen(options.port, "127.0.0.1", () => {
-    process.stdout.write(`Memact Capture Helper running at http://127.0.0.1:${options.port}\n`);
+    process.stdout.write(`Memact local helper running at http://127.0.0.1:${options.port}\n`);
     process.stdout.write(`Raw screenshots/audio are not retained. OCR is ${options.ocr ? "enabled" : "off"}.\n`);
   });
 
