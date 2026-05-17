@@ -2,15 +2,15 @@
   "name": "memact-capture",
   "private": true,
   "version": "0.0.0",
-  "description": "Memact local evidence engine and browser extension.",
+  "description": "Memact local evidence layer for approved digital activity and intent infrastructure.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "keywords": [
     "capture",
-    "memory",
-    "sessions",
+    "intent",
+    "evidence",
     "browser-extension",
-    "episodic-memory"
+    "permissioned-context"
   ],
   "repository": {
     "type": "git",
