@@ -10,9 +10,9 @@ It owns one job:
 observe useful digital activity and store it as local evidence
 ```
 
-The capture layer does not generate answers. It records what the user encountered and
-wraps retained content in local evidence, nodes, edges, and schema packet
-candidates so other Memact layers and approved apps can work from a real graph.
+The capture layer does not generate answers. It records what the user encountered
+as local evidence so downstream Memact layers can understand, group, predict
+from, and store only what the user approved.
 
 ## What This Repo Owns
 
@@ -21,10 +21,19 @@ candidates so other Memact layers and approved apps can work from a real graph.
 - Automatic page, tab, navigation, and interaction capture.
 - Content extraction from webpages, PDFs, visible captions/transcripts, selections, and image context.
 - Noise filtering for empty pages, auth screens, browser chrome, and low-value activity.
-- Local IndexedDB storage for events, sessions, content units, graph packets, schema packet candidates, and media jobs.
+- Local IndexedDB storage for events, sessions, content units, evidence packets, extraction hints, and media jobs.
 - Public bridge APIs for Website and downstream engines.
 - A small app embed SDK for scoped browser integrations.
 - Extension packaging.
+
+## What This Repo Does Not Own
+
+- Final semantic understanding.
+- Durable schemas or final schema packets.
+- Intent prediction.
+- Long-term memory survival decisions.
+- App-facing permission checks.
+- Raw private data export for apps.
 
 ## Local Evidence Model
 
@@ -43,12 +52,13 @@ Capture stores several levels of evidence:
   Captured text fragments such as article paragraphs, captions, transcript segments, PDF text, image captions, and selected text.
 
 - `graph_packets`
-  Local packets containing content units, extracted nodes, extracted edges, evidence links, schema packet candidates, and knowledge-graph metadata.
+  Compatibility evidence packets containing content units, extraction hints,
+  evidence links, and possible graph-shaped signals. These are not final
+  semantic graph authority.
 
 - `schema_packets`
-  Candidate schema envelopes inside graph packets. They group node IDs, edge IDs,
-  and evidence IDs, but they are not final durable schemas until the Schema layer
-  confirms them.
+  Candidate schema envelopes inside evidence packets. They are hints for the
+  Schema layer, not final durable schemas.
 
 - `media_jobs`
   Local OCR/ASR job descriptors. These are not raw media files.
@@ -72,8 +82,8 @@ For device context, the optional Capture Helper samples the active app, active w
 
 ## Privacy Boundary
 
-Capture must reject sensitive pages before they become events, content units,
-nodes, or edges.
+Capture must reject sensitive pages before they become events, content units, or
+downstream evidence.
 
 Sensitive categories include:
 
@@ -91,12 +101,13 @@ Apps do not receive a user's raw Memact memory graph by default.
 
 Access creates API keys and consent scopes. Capture can return scoped snapshots:
 
-- capture/schema write scopes let an app ask Memact to capture and form memory
+- capture scopes let an app ask Memact to record approved evidence
+- schema and memory scopes are handled by downstream layers after Access verifies permission
 - `memory:read_summary` allows compact summaries
 - `memory:read_evidence` allows evidence snippets and source cards
 - `memory:read_graph` is required before nodes and edges are exposed
 
-Without graph-read scope, graph packets return counts and metadata only.
+Without graph-read scope, evidence packets return counts and metadata only.
 
 Activity categories also matter. The Capture SDK sends the app's approved
 categories to Access during verification and passes them to the local bridge.
@@ -210,15 +221,16 @@ console.log(snapshot.events.length);
 console.log(snapshot.graph_packets[0]);
 ```
 
-Each graph packet now includes:
+Each compatibility evidence packet can include:
 
 - `evidence_links`
 - `knowledge_graph.nodes`
 - `knowledge_graph.edges`
 - `schema_packets`
 
-That is the Capture-side contract for turning allowed activity into schema graph
-memory without exposing raw graph data by default.
+That is the Capture-side contract for turning allowed activity into local
+evidence without exposing raw graph data by default. Inference, Schema, Intent,
+and Memory own the later meaning, grouping, prediction, and storage steps.
 
 If the local helper is running, `window.capture.getSnapshot()` will also include `device_graph_capture` packets after the extension imports them.
 
