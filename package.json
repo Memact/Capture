@@ -2,12 +2,12 @@
   "name": "memact-capture",
   "private": true,
   "version": "0.0.0",
-  "description": "Memact local evidence layer for approved digital activity and intent infrastructure.",
+  "description": "Memact capture layer for app/site signals, optional extension capture, imports, and approved activity events.",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "keywords": [
     "capture",
-    "intent",
+    "signals",
     "evidence",
     "browser-extension",
     "permissioned-context"
