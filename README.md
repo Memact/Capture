@@ -41,14 +41,21 @@ No Memact integration
 
 ## Current Code
 
-This repo includes a small app-event ingestion path:
+This repo includes the extension at `extension/memact` and a small app-event
+ingestion path:
 
 - `normalizeCaptureEvent(input, defaults)`
 - `validateCaptureEvent(input)`
 - `redactSensitivePayload(event)`
 - `shouldSkipSensitiveEvent(event)`
 - `ingestAppCaptureEvent(event, options)`
+- `extensionSnapshotToCaptureEvents(snapshot, defaults)`
 - in-memory capture store helpers for tests and local development
+
+The extension adapter is the bridge between the older browser extension capture
+surface and the newer capture-event contract. Extension activity snapshots can
+be normalized into the same `memact.capture_event.v0` events that apps/sites
+send through the SDK/API.
 
 It does not yet own a hosted production database. Access can store accepted
 events today so gateway behavior can be verified while Capture remains the

@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import { ingestAppCaptureEvent } from "../src/app-ingest.mjs"
 import { normalizeCaptureEvent, shouldSkipSensitiveEvent, validateCaptureEvent } from "../src/capture-event.mjs"
+import { extensionSnapshotToCaptureEvents } from "../src/extension-adapter.mjs"
 import { createMemoryCaptureStore } from "../src/storage/capture-store.mjs"
 
 test("app-fed event normalizes", () => {
@@ -37,4 +38,27 @@ test("stored events are listed", async () => {
   }, { store })
   assert.equal(result.accepted, true)
   assert.equal((await store.listCaptureEvents()).length, 1)
+})
+
+test("extension snapshots become normal capture events", () => {
+  const events = extensionSnapshotToCaptureEvents({
+    activities: [{
+      activity_id: "act_1",
+      title: "Read API docs",
+      url: "https://example.com/docs",
+      page_type: "documentation",
+      started_at: "2026-05-21T10:00:00.000Z"
+    }],
+    content_units: [{
+      unit_id: "unit_1",
+      title: "Discount comparison",
+      text: "Comparing discounts across stores",
+      url: "https://shop.example/deals"
+    }]
+  })
+
+  assert.equal(events.length, 2)
+  assert.equal(events[0].source_app, "memact-extension")
+  assert.equal(events[0].category, "learning")
+  assert.equal(events[1].category, "shopping")
 })
