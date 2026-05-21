@@ -2,8 +2,9 @@
 
 Capture records useful digital activity as evidence.
 
-App/site integration is primary. The browser extension and local helper are
-optional capture sources.
+Apps and sites can send events through the SDK/API after permission. The browser
+extension and local helper are optional capture sources, not the only way
+Memact works.
 
 ## Owns
 
@@ -24,10 +25,34 @@ optional capture sources.
 ## Flow
 
 ```text
-App/site using Memact -> SDK/API capture event -> Access verifies -> Capture records -> Inference
-Optional extension/local helper -> Capture records -> Inference
-No Memact integration -> no automatic capture unless the user shares, imports, connects, or enables the extension
+App/site using Memact
+-> SDK/API capture event
+-> Access verifies
+-> Capture records
+-> Inference understands
+
+Optional extension/local helper
+-> Capture records
+-> Inference understands
+
+No Memact integration
+-> no automatic capture unless the user shares, imports, connects, or enables the extension
 ```
+
+## Current Code
+
+This repo includes a small app-event ingestion path:
+
+- `normalizeCaptureEvent(input, defaults)`
+- `validateCaptureEvent(input)`
+- `redactSensitivePayload(event)`
+- `shouldSkipSensitiveEvent(event)`
+- `ingestAppCaptureEvent(event, options)`
+- in-memory capture store helpers for tests and local development
+
+It does not yet own a hosted production database. Access can store accepted
+events today so gateway behavior can be verified while Capture remains the
+source of truth for event shape and privacy handling.
 
 ## Development
 
