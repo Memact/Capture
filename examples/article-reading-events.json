@@ -1,0 +1,36 @@
+[
+  {
+    "schema_version": "memact.capture_event.v0",
+    "event_type": "article_open",
+    "source_app": "article-app-demo",
+    "category": "reading",
+    "payload": {
+      "title": "New rules for AI policy",
+      "topic": "ai policy",
+      "source": "Example News",
+      "url": "https://example.com/ai-policy"
+    }
+  },
+  {
+    "schema_version": "memact.capture_event.v0",
+    "event_type": "scroll_depth_update",
+    "source_app": "article-app-demo",
+    "category": "reading",
+    "payload": {
+      "title": "New rules for AI policy",
+      "topic": "ai policy",
+      "scroll_depth": 88
+    }
+  },
+  {
+    "schema_version": "memact.capture_event.v0",
+    "event_type": "article_finish",
+    "source_app": "article-app-demo",
+    "category": "reading",
+    "payload": {
+      "title": "New rules for AI policy",
+      "topic": "ai policy",
+      "read_time_seconds": 260
+    }
+  }
+]

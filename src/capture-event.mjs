@@ -1,6 +1,17 @@
 const SENSITIVE_RE = /login|password|auth|bank|payment|checkout|billing|inbox|message|medical|patient/i
 const SENSITIVE_FIELD_RE = /password|token|secret|otp|card|cvv|authorization|cookie|email/i
 
+export const ARTICLE_READING_EVENT_TYPES = Object.freeze([
+  "article_open",
+  "article_read_time",
+  "scroll_depth_update",
+  "article_finish",
+  "article_revisit",
+  "topic_skip",
+  "summary_expand",
+  "summary_collapse"
+])
+
 export function normalizeCaptureEvent(input = {}, defaults = {}) {
   return {
     schema_version: "memact.capture_event.v0",
@@ -11,11 +22,35 @@ export function normalizeCaptureEvent(input = {}, defaults = {}) {
     user_ref: input.user_ref || defaults.user_ref || "",
     occurred_at: normalizeTime(input.occurred_at || input.timestamp || defaults.occurred_at),
     category: String(input.category || defaults.category || "").trim(),
-    payload: redactSensitivePayload(input.payload || {}),
+    payload: normalizeArticleReadingPayload(String(input.event_type || input.type || defaults.event_type || "").trim(), redactSensitivePayload(input.payload || {})),
     permission_context: input.permission_context || defaults.permission_context || {},
     evidence: input.evidence || {},
     metadata: input.metadata || {}
   }
+}
+
+function normalizeArticleReadingPayload(eventType, payload) {
+  if (!ARTICLE_READING_EVENT_TYPES.includes(eventType)) return payload
+  return {
+    ...payload,
+    title: clean(payload.title),
+    topic: clean(payload.topic),
+    source: clean(payload.source),
+    url: clean(payload.url),
+    read_time_seconds: number(payload.read_time_seconds),
+    scroll_depth: number(payload.scroll_depth),
+    estimated_read_time_minutes: number(payload.estimated_read_time_minutes),
+    summary_style: clean(payload.summary_style)
+  }
+}
+
+function clean(value) {
+  return typeof value === "string" ? value.trim().slice(0, 2000) : value
+}
+
+function number(value) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
 }
 
 export function validateCaptureEvent(input = {}) {

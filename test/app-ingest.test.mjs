@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import { ingestAppCaptureEvent } from "../src/app-ingest.mjs"
-import { normalizeCaptureEvent, shouldSkipSensitiveEvent, validateCaptureEvent } from "../src/capture-event.mjs"
+import { ARTICLE_READING_EVENT_TYPES, normalizeCaptureEvent, shouldSkipSensitiveEvent, validateCaptureEvent } from "../src/capture-event.mjs"
 import { extensionSnapshotToCaptureEvents } from "../src/extension-adapter.mjs"
 import { createMemoryCaptureStore } from "../src/storage/capture-store.mjs"
 
@@ -61,4 +61,32 @@ test("extension snapshots become normal capture events", () => {
   assert.equal(events[0].source_app, "memact-extension")
   assert.equal(events[0].category, "learning")
   assert.equal(events[1].category, "shopping")
+})
+
+test("article reading events normalize with reading category", () => {
+  for (const eventType of ARTICLE_READING_EVENT_TYPES) {
+    const event = normalizeCaptureEvent({
+      event_type: eventType,
+      category: "reading",
+      source_app: "article-app",
+      payload: {
+        title: "AI policy guide",
+        topic: "ai policy",
+        scroll_depth: "88"
+      }
+    })
+    assert.equal(event.schema_version, "memact.capture_event.v0")
+    assert.equal(event.event_type, eventType)
+    assert.equal(event.category, "reading")
+    assert.equal(event.payload.scroll_depth, 88)
+  }
+})
+
+test("article event still requires category", () => {
+  const result = validateCaptureEvent({
+    event_type: "article_open",
+    source_app: "article-app",
+    payload: { title: "A" }
+  })
+  assert.equal(result.ok, false)
 })
