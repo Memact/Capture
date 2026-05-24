@@ -7,7 +7,7 @@
   "exports": {
     ".": "./src/index.mjs"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "MIT",
   "type": "module",
   "keywords": [
     "capture",
